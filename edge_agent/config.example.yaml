@@ -9,7 +9,7 @@ source:
   fps_override: null
   frame_stride: 1                # RTSP on weak CPU: 2-3 (process every Nth frame); keep tracker max_age/ttl in processed frames
 
-line:
+line:                             # optional when backend.config_poll_interval_s > 0: the server line (ADR-030) replaces it
   line_id: door-1
   ax: 0.20                       # normalized 0..1, origin top-left, y down
   ay: 0.55
@@ -46,5 +46,14 @@ backend:
   timeout_s: 10
   base_backoff_s: 1
   max_backoff_s: 60
+  heartbeat_interval_s: 60
+  config_poll_interval_s: 300     # pull line + zones from the server (Pengaturan → Garis hitung / Zona); 0 = YAML only (ADR-030)
+  snapshot_interval_s: 600        # upload a downscaled JPEG of the latest frame for the drawing canvas; 0 = off
+  zone_sample_interval_s: 10      # zone occupancy sample interval (ADR-031)
+
+# zones: optional initial polygons (normalized). Replaced by the server config when polled.
+# zones:
+#   - zone_id: kasir-1
+#     polygon: [[0.1, 0.3], [0.35, 0.3], [0.35, 0.85], [0.1, 0.85]]
 
 health_file: ./edge_health.json

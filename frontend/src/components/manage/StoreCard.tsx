@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Camera, Cpu, KeyRound, Pencil, Plus, Power, Trash2 } from "lucide-react";
+import { Bell, Camera, Cpu, KeyRound, Pencil, Plus, Power, Send, Shapes, Spline, Trash2 } from "lucide-react";
 import { api } from "../../api/client";
 import type { CameraOut, DeviceKeyOut, DeviceOut, StoreOut } from "../../api/types";
 import { useAlertRules } from "../../hooks/useAlerts";
@@ -11,7 +11,10 @@ import { relativeTime } from "../../lib/time";
 import { AlertRulesDialog } from "./AlertRulesDialog";
 import { CameraDialog } from "./CameraDialog";
 import { DeviceDialog } from "./DeviceDialogs";
+import { LineEditorDialog } from "./LineEditorDialog";
 import { StoreDialog } from "./StoreDialog";
+import { TelegramDialog } from "./TelegramDialog";
+import { ZoneEditorDialog } from "./ZoneEditorDialog";
 
 interface Props {
   store: StoreOut;
@@ -54,23 +57,30 @@ const DeviceLine = ({ d, storeId, canManage, onKey }: { d: DeviceOut; storeId: s
 };
 
 const CameraLine = ({ c, storeId, devices, canManage }: { c: CameraOut; storeId: string; devices: DeviceOut[]; canManage: boolean }) => {
-  const [edit, setEdit] = useState(false);
+  const [dialog, setDialog] = useState<"edit" | "line" | "zones" | null>(null);
   const del = useManageMutation(() => api.deleteCamera(c.camera_id), [["cameras", storeId]], "Kamera dihapus");
   const dev = devices.find((d) => d.device_id === c.device_id);
+  const now = useNow();
   return (
     <li data-testid="manage-camera-row" className="flex flex-wrap items-center gap-3 px-4 py-3">
       <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line bg-surface-2 text-txt-2"><Camera className="h-4 w-4" /></span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-txt"><span data-testid="manage-camera-name">{c.name}</span> <code className="font-mono ml-1 rounded bg-surface-2 px-1 text-[11px] text-txt-2" data-testid="manage-camera-external-id">{c.external_id}</code></p>
-        <p className="truncate text-[11px] text-txt-3">{dev ? `Diproses oleh ${dev.name}` : "Perangkat belum ditentukan"}</p>
+        <p className="truncate text-[11px] text-txt-3">{dev ? `Diproses oleh ${dev.name}` : "Perangkat belum ditentukan"} · <span data-testid="manage-camera-snapshot">{c.snapshot_at ? `snapshot ${relativeTime(c.snapshot_at, now)}` : "belum ada snapshot"}</span></p>
       </div>
-      {canManage && (
-        <div className="flex items-center gap-1">
-          <IconBtn onClick={() => setEdit(true)} label="Ubah kamera" testId="manage-camera-edit"><Pencil className="h-4 w-4" /></IconBtn>
-          <IconBtn onClick={() => window.confirm(`Hapus kamera ${c.name}?`) && del.mutate()} label="Hapus kamera" testId="manage-camera-delete" danger><Trash2 className="h-4 w-4" /></IconBtn>
-        </div>
-      )}
-      {edit && <CameraDialog open onClose={() => setEdit(false)} storeId={storeId} devices={devices} camera={c} />}
+      <div className="flex items-center gap-1">
+        <IconBtn onClick={() => setDialog("line")} label="Garis hitung" testId="manage-camera-line"><Spline className="h-4 w-4" /></IconBtn>
+        <IconBtn onClick={() => setDialog("zones")} label="Zona okupansi" testId="manage-camera-zones"><Shapes className="h-4 w-4" /></IconBtn>
+        {canManage && (
+          <>
+            <IconBtn onClick={() => setDialog("edit")} label="Ubah kamera" testId="manage-camera-edit"><Pencil className="h-4 w-4" /></IconBtn>
+            <IconBtn onClick={() => window.confirm(`Hapus kamera ${c.name}?`) && del.mutate()} label="Hapus kamera" testId="manage-camera-delete" danger><Trash2 className="h-4 w-4" /></IconBtn>
+          </>
+        )}
+      </div>
+      {dialog === "edit" && <CameraDialog open onClose={() => setDialog(null)} storeId={storeId} devices={devices} camera={c} />}
+      {dialog === "line" && <LineEditorDialog open onClose={() => setDialog(null)} camera={c} canManage={canManage} />}
+      {dialog === "zones" && <ZoneEditorDialog open onClose={() => setDialog(null)} camera={c} canManage={canManage} />}
     </li>
   );
 };
@@ -79,7 +89,7 @@ export const StoreCard = ({ store, canManage, onKey }: Props) => {
   const devices = useQuery({ queryKey: ["devices", store.store_id], queryFn: () => api.devices(store.store_id) });
   const cameras = useCameras(store.store_id);
   const rules = useAlertRules(store.store_id);
-  const [dialog, setDialog] = useState<"store" | "device" | "camera" | "rules" | null>(null);
+  const [dialog, setDialog] = useState<"store" | "device" | "camera" | "rules" | "telegram" | null>(null);
   const close = () => setDialog(null);
   const list = (items: number, empty: string) => (items === 0 ? <p className="px-4 py-3 text-xs text-txt-3">{empty}</p> : null);
   return (
@@ -88,10 +98,12 @@ export const StoreCard = ({ store, canManage, onKey }: Props) => {
         <div className="min-w-0">
           <h3 data-testid="manage-store-name" className="truncate text-base font-semibold text-txt">{store.name}</h3>
           <p className="text-xs text-txt-2">Zona waktu {store.timezone} · <span data-testid="manage-store-hours">{store.open_time ? `buka ${store.open_time}–${store.close_time}` : "buka 24 jam"}</span>
-            {rules.data && <> · <span data-testid="manage-store-alert-rules">{rules.data.is_default ? "alert bawaan" : "alert disesuaikan"}</span></>}</p>
+            {rules.data && <> · <span data-testid="manage-store-alert-rules">{rules.data.is_default ? "alert bawaan" : "alert disesuaikan"}</span></>}
+            {" · "}<span data-testid="manage-store-telegram">{store.telegram_chat_id ? "Telegram aktif" : "Telegram nonaktif"}</span></p>
         </div>
         {canManage && (
           <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setDialog("telegram")} className="ctl h-9" data-testid="manage-store-telegram-button"><Send className="h-4 w-4" /> Telegram</button>
             <button type="button" onClick={() => setDialog("rules")} disabled={!rules.data} className="ctl h-9" data-testid="manage-store-alert-rules-button"><Bell className="h-4 w-4" /> Aturan alert</button>
             <button type="button" onClick={() => setDialog("store")} className="ctl h-9" data-testid="manage-store-edit"><Pencil className="h-4 w-4" /> Ubah toko</button>
           </div>
@@ -122,6 +134,7 @@ export const StoreCard = ({ store, canManage, onKey }: Props) => {
         </div>
       </div>
       {dialog === "store" && <StoreDialog open onClose={close} tenantId={store.tenant_id} store={store} />}
+      {dialog === "telegram" && <TelegramDialog open onClose={close} store={store} />}
       {dialog === "rules" && rules.data && <AlertRulesDialog open onClose={close} storeId={store.store_id} storeName={store.name} rules={rules.data} />}
       {dialog === "device" && <DeviceDialog open onClose={close} storeId={store.store_id} onCreated={onKey} />}
       {dialog === "camera" && <CameraDialog open onClose={close} storeId={store.store_id} devices={devices.data ?? []} />}

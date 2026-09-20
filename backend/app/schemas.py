@@ -16,6 +16,7 @@ class StoreOut(BaseModel):
     timezone: str
     open_time: str | None = None  # "HH:MM" store-local; both None => open 24 h (ADR-026)
     close_time: str | None = None
+    telegram_chat_id: str | None = None  # ADR-029; None = no Telegram channel for this store
 
 
 class SummaryOut(BaseModel):
@@ -214,7 +215,79 @@ class CameraOut(BaseModel):
     device_id: UUID | None
     external_id: str  # == payload camera_id
     name: str
+    snapshot_at: datetime | None = None  # last edge snapshot (ADR-030); GET /cameras/{id}/snapshot serves it
     created_at: datetime
+
+
+# ----------------------------------------------------------------------------- camera geometry (ADR-030) + zones (ADR-031)
+class LineOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    camera_id: UUID
+    line_id: str
+    ax: float
+    ay: float
+    bx: float
+    by: float
+    enter_side: Literal["left", "right"]
+
+
+class SnapshotAckOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    camera_id: str
+    snapshot_at: datetime
+    bytes: int
+
+
+class ZoneOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    zone_id: UUID
+    store_id: UUID
+    camera_id: UUID
+    camera_external_id: str
+    external_id: str  # == payload zone_id
+    name: str
+    polygon: list[tuple[float, float]]
+    created_at: datetime
+    last_sample_ts: datetime | None
+    last_count: int | None
+    last_count_max: int | None
+
+
+class ZoneHourBucket(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    hour_start: datetime  # store-local, tz-aware
+    avg_count: float
+    max_count: int
+    samples: int
+
+
+class ZoneSeriesOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    zone_id: UUID
+    external_id: str
+    name: str
+    samples: int
+    peak: int
+    buckets: list[ZoneHourBucket]
+
+
+class ZoneOccupancyOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    store_id: UUID
+    date: date
+    timezone: str
+    zones: list[ZoneSeriesOut]
+
+
+class ChannelsOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    telegram_configured: bool  # TELEGRAM_BOT_TOKEN present on the server
+
+
+class TelegramTestOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ok: bool
+    error: str | None
 
 
 class DeviceKeyOut(BaseModel):

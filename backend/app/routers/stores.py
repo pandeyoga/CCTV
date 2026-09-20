@@ -52,7 +52,8 @@ async def list_stores(session: Annotated[AsyncSession, Depends(get_session)], us
     if not user.tenant_ids:
         return []
     rows = (await session.execute(select(Store).where(Store.tenant_id.in_(user.tenant_ids)).order_by(Store.created_at))).scalars()
-    return [StoreOut(store_id=s.id, tenant_id=s.tenant_id, name=s.name, timezone=s.timezone, open_time=s.open_time, close_time=s.close_time) for s in rows]
+    return [StoreOut(store_id=s.id, tenant_id=s.tenant_id, name=s.name, timezone=s.timezone, open_time=s.open_time, close_time=s.close_time,
+                     telegram_chat_id=s.telegram_chat_id) for s in rows]
 
 
 @router.get("/{store_id}/summary", response_model=SummaryOut)

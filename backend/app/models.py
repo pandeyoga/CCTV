@@ -57,6 +57,7 @@ class Store(Base):
     timezone: Mapped[str] = mapped_column(String(64))  # IANA
     open_time: Mapped[str | None] = mapped_column(String(5))  # "HH:MM" store-local; NULL with close_time => open 24 h (ADR-026)
     close_time: Mapped[str | None] = mapped_column(String(5))
+    telegram_chat_id: Mapped[str | None] = mapped_column(String(64))  # Telegram group/chat for alert messages (ADR-029); NULL = off
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
@@ -134,6 +135,8 @@ class Alert(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     acknowledged_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     acknowledged_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("dashboard_users.id"))
+    notified_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # external channel delivered the "opened" message (ADR-029)
+    resolved_notified_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
 
 class DashboardUser(Base):
@@ -172,7 +175,41 @@ class Camera(Base):
     device_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("devices.id"))
     external_id: Mapped[str] = mapped_column(String(64))  # == payload camera_id
     name: Mapped[str] = mapped_column(String(128))
+    snapshot_at: Mapped[datetime | None] = mapped_column(UTCDateTime)  # last JPEG uploaded by the edge (ADR-030); file on SNAPSHOT_DIR
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class Zone(Base):
+    """Polygon region on one camera (ADR-031). `external_id` == payload zone_id; polygon = JSON [[x,y],...] normalized."""
+
+    __tablename__ = "zones"
+    __table_args__ = (UniqueConstraint("camera_id", "external_id", name="uq_zones_camera_external"),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    store_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("stores.id"), index=True)
+    camera_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cameras.id"), index=True)
+    external_id: Mapped[str] = mapped_column(String(64))
+    name: Mapped[str] = mapped_column(String(128))
+    polygon: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class ZoneSample(Base):
+    """One occupancy sample per zone per interval (ADR-031). `count` at `sample_ts`, `count_max` within the interval."""
+
+    __tablename__ = "zone_samples"
+    __table_args__ = (Index("ix_zone_samples_zone_ts", "zone_id", "sample_ts"), Index("ix_zone_samples_store_ts", "store_id", "sample_ts"))
+    sample_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    store_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("stores.id"))
+    camera_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cameras.id"))
+    zone_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("zones.id"))
+    device_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("devices.id"))
+    sample_ts: Mapped[datetime] = mapped_column(UTCDateTime)
+    received_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+    interval_s: Mapped[float] = mapped_column(Double)
+    count: Mapped[int] = mapped_column(Integer)
+    count_max: Mapped[int] = mapped_column(Integer)
 
 
 class CountLine(Base):

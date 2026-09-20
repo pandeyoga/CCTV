@@ -7,6 +7,7 @@ export interface StoreOut {
   timezone: string;
   open_time: string | null; // "HH:MM" store-local; both null => open 24 h (ADR-026)
   close_time: string | null;
+  telegram_chat_id: string | null; // ADR-029
 }
 
 export interface SummaryOut {
@@ -91,7 +92,68 @@ export interface CameraOut {
   device_id: string | null;
   external_id: string; // == payload camera_id configured on the edge
   name: string;
+  snapshot_at: string | null; // ADR-030
   created_at: string;
+}
+
+// ---------------------------------------------------------------- camera geometry (ADR-030) + zones (ADR-031)
+export type EnterSide = "left" | "right";
+export type Point = [number, number];
+
+export interface LineOut {
+  camera_id: string;
+  line_id: string;
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  enter_side: EnterSide;
+}
+
+export interface ZoneOut {
+  zone_id: string;
+  store_id: string;
+  camera_id: string;
+  camera_external_id: string;
+  external_id: string;
+  name: string;
+  polygon: Point[];
+  created_at: string;
+  last_sample_ts: string | null;
+  last_count: number | null;
+  last_count_max: number | null;
+}
+
+export interface ZoneHourBucket {
+  hour_start: string;
+  avg_count: number;
+  max_count: number;
+  samples: number;
+}
+
+export interface ZoneSeriesOut {
+  zone_id: string;
+  external_id: string;
+  name: string;
+  samples: number;
+  peak: number;
+  buckets: ZoneHourBucket[];
+}
+
+export interface ZoneOccupancyOut {
+  store_id: string;
+  date: string;
+  timezone: string;
+  zones: ZoneSeriesOut[];
+}
+
+export interface ChannelsOut {
+  telegram_configured: boolean;
+}
+
+export interface TelegramTestOut {
+  ok: boolean;
+  error: string | null;
 }
 
 export interface DeviceKeyOut {

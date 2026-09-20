@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,13 +14,44 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..alerts import DEFAULT_RULES, evaluate, rules_for
 from ..auth import CurrentUser, forbidden, get_session, require_user
 from ..models import Alert, AlertRule, DashboardUser, Device, Store
-from ..schemas import AlertListOut, AlertOut, AlertRulesOut
-from .manage import _managed_store, _visible_store
+from ..schemas import AlertListOut, AlertOut, AlertRulesOut, ChannelsOut, StoreOut, TelegramTestOut
+from ..telegram import notify_pending, send_message
+from .manage import _managed_store, _store_out, _visible_store
 
 router = APIRouter(prefix="/api/v1", tags=["alerts"])
 
 User = Annotated[CurrentUser, Depends(require_user)]
 Db = Annotated[AsyncSession, Depends(get_session)]
+
+
+class TelegramIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    chat_id: str | None = Field(..., min_length=1, max_length=64, pattern=r"^-?\d+$|^@[A-Za-z0-9_]{5,}$")  # null = off
+
+
+@router.get("/notifications/channels", response_model=ChannelsOut)
+async def channels(request: Request, user: User) -> ChannelsOut:
+    return ChannelsOut(telegram_configured=bool(request.app.state.settings.telegram_bot_token))
+
+
+@router.put("/stores/{store_id}/telegram", response_model=StoreOut)
+async def put_telegram(store_id: UUID, body: TelegramIn, s: Db, user: User) -> StoreOut:
+    st = await _managed_store(s, store_id, user)
+    st.telegram_chat_id = body.chat_id
+    await s.commit()
+    return _store_out(st)
+
+
+@router.post("/stores/{store_id}/telegram/test", response_model=TelegramTestOut)
+async def test_telegram(store_id: UUID, request: Request, s: Db, user: User) -> TelegramTestOut:
+    st = await _managed_store(s, store_id, user)
+    token = request.app.state.settings.telegram_bot_token
+    if not token:
+        raise HTTPException(503, "TELEGRAM_BOT_TOKEN belum diatur di server")
+    if not st.telegram_chat_id:
+        raise HTTPException(422, "chat_id belum diatur untuk toko ini")
+    err = await send_message(token, st.telegram_chat_id, f"✅ Pesan uji dari dashboard untuk toko <b>{st.name}</b>. Alert toko ini akan dikirim ke grup ini.")
+    return TelegramTestOut(ok=err is None, error=err)
 
 
 class AlertRulesIn(BaseModel):
@@ -52,12 +83,13 @@ async def _alert_out(s: AsyncSession, rows: list[Alert]) -> list[AlertOut]:
 
 
 @router.get("/alerts", response_model=AlertListOut)
-async def list_alerts(s: Db, user: User, status_: Annotated[Literal["open", "resolved", "all"], Query(alias="status")] = "open",
+async def list_alerts(request: Request, s: Db, user: User, status_: Annotated[Literal["open", "resolved", "all"], Query(alias="status")] = "open",
                       store_id: UUID | None = None, limit: Annotated[int, Query(ge=1, le=500)] = 100) -> AlertListOut:
     now = datetime.now(timezone.utc)
     if not user.tenant_ids:
         return AlertListOut(evaluated_at=now, open_count=0, unacknowledged_count=0, alerts=[])
     await evaluate(s, user.tenant_ids, now)
+    await notify_pending(s, request.app.state.settings.telegram_bot_token)
     base = select(Alert).where(Alert.tenant_id.in_(user.tenant_ids))
     if store_id is not None:
         await _visible_store(s, store_id, user)

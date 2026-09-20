@@ -24,6 +24,7 @@ count_events *──1 cameras, *──1 devices, *──1 stores, *──1 tenan
 | name | text | unique per tenant |
 | timezone | text | IANA, e.g. `Asia/Jakarta`; used for display/aggregation buckets |
 | open_time, close_time | text nullable | `HH:MM` store-local opening window (ADR-026); both NULL = 24 h; `close <= open` wraps past midnight |
+| telegram_chat_id | text nullable | Telegram group/channel for alert messages (ADR-029); NULL = channel off |
 | created_at | timestamptz |
 
 ### devices  (edge agents)
@@ -79,7 +80,7 @@ Unique `(user_id, tenant_id)`; indexed on both fks.
 | name | text |
 | created_at | timestamptz |
 
-### count_lines  (server copy of line config; optional in Stage 2, needed for dashboard overlay later)
+### count_lines  (SSOT of the camera's counting line since ADR-030; delivered to the edge via `GET /devices/me/config`)
 | id | uuid pk |
 | tenant_id, camera_id | fks |
 | external_id | text | == `line_id` in payload; unique per camera |
@@ -135,3 +136,23 @@ Indexes: `(store_id, event_ts)`, `(camera_id, event_ts)`, `(tenant_id, event_ts)
 | acknowledged_at | timestamptz nullable |
 | acknowledged_by | uuid fk dashboard_users nullable |
 Indexes: `(tenant_id, opened_at)`, `(store_id, resolved_at)`.
+
+### zones  (ADR-031)
+| col | type | notes |
+|---|---|---|
+| id | uuid pk | |
+| tenant_id, store_id, camera_id | uuid fk | denormalised for scoping |
+| external_id | text | == payload `zone_id`; unique per camera |
+| name | text | |
+| polygon | text (JSON `[[x,y],...]`) | normalized 0..1, ≥ 3 vertices |
+| created_at | timestamptz | |
+
+### zone_samples  (ADR-031; telemetry, deleted with the zone)
+| sample_id | uuid pk | client idempotency key |
+| tenant_id, store_id, camera_id, zone_id, device_id | uuid fk | |
+| sample_ts | timestamptz | end of the interval (edge clock) |
+| received_at | timestamptz | server clock |
+| interval_s | double | |
+| count, count_max | int | inside at `sample_ts` / max simultaneous within the interval |
+
+Additional columns (2026-06): `cameras.snapshot_at` (last edge JPEG, file at `SNAPSHOT_DIR/<camera_id>.jpg`, ADR-030); `alerts.notified_at`, `alerts.resolved_notified_at` (Telegram delivery marks, ADR-029).

@@ -72,6 +72,15 @@ class BackendConfig(BaseModel):
     base_backoff_s: float = 1.0
     max_backoff_s: float = Field(default=60.0, description="upper bound of the retry delay AFTER jitter")
     heartbeat_interval_s: float = Field(default=60.0, gt=0, description="server marks the device stale after 3x this")
+    config_poll_interval_s: float = Field(default=300.0, ge=0, description="pull lines/zones from the server every N s; 0 = YAML only (ADR-030)")
+    snapshot_interval_s: float = Field(default=600.0, ge=0, description="upload a downscaled JPEG of the latest frame every N s; 0 = off")
+    zone_sample_interval_s: float = Field(default=10.0, gt=0, description="zone occupancy sampling interval (ADR-031)")
+
+
+class ZoneConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    zone_id: str = Field(min_length=1, max_length=64)
+    polygon: list[tuple[float, float]] = Field(min_length=3)
 
 
 class EdgeConfig(BaseModel):
@@ -79,7 +88,8 @@ class EdgeConfig(BaseModel):
     device_id: str = Field(min_length=1, description="local label only; server identity comes from the API key")
     camera_id: str = Field(min_length=1)
     source: SourceConfig
-    line: LineConfig
+    line: LineConfig | None = Field(default=None, description="initial line; may be omitted when the server provides one (ADR-030)")
+    zones: list[ZoneConfig] = Field(default_factory=list, description="initial zones; replaced by the server config when polled")
     counter: CounterConfig = CounterConfig()
     detector: DetectorConfig = DetectorConfig()
     tracker: TrackerConfig = TrackerConfig()

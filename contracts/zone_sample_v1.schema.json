@@ -1,0 +1,139 @@
+{
+  "request": {
+    "$defs": {
+      "ZoneSampleV1": {
+        "additionalProperties": false,
+        "description": "Occupancy of one zone over one sampling interval. `count` = tracks inside the zone at `sample_ts`;\n`count_max` = maximum simultaneous tracks inside during the interval ending at `sample_ts`.\nNot durable on the edge (bounded memory queue) \u2014 telemetry, not accounting.",
+        "properties": {
+          "camera_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "count": {
+            "minimum": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "count_max": {
+            "minimum": 0,
+            "title": "Count Max",
+            "type": "integer"
+          },
+          "interval_s": {
+            "exclusiveMinimum": 0,
+            "maximum": 3600,
+            "title": "Interval S",
+            "type": "number"
+          },
+          "sample_id": {
+            "description": "Client-generated UUID4; server dedup key",
+            "format": "uuid",
+            "title": "Sample Id",
+            "type": "string"
+          },
+          "sample_ts": {
+            "description": "End of the interval (UTC, tz-aware)",
+            "format": "date-time",
+            "title": "Sample Ts",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "zone_id": {
+            "description": "External zone id configured on the camera",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Zone Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sample_id",
+          "camera_id",
+          "zone_id",
+          "sample_ts",
+          "interval_s",
+          "count",
+          "count_max"
+        ],
+        "title": "ZoneSampleV1",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "samples": {
+        "items": {
+          "$ref": "#/$defs/ZoneSampleV1"
+        },
+        "maxItems": 500,
+        "minItems": 1,
+        "title": "Samples",
+        "type": "array"
+      }
+    },
+    "required": [
+      "samples"
+    ],
+    "title": "ZoneSampleBatchRequestV1",
+    "type": "object"
+  },
+  "response": {
+    "$defs": {
+      "RejectedSampleV1": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "sample_id": {
+            "format": "uuid",
+            "title": "Sample Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sample_id",
+          "reason"
+        ],
+        "title": "RejectedSampleV1",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "accepted": {
+        "items": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "title": "Accepted",
+        "type": "array"
+      },
+      "duplicates": {
+        "items": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "title": "Duplicates",
+        "type": "array"
+      },
+      "rejected": {
+        "items": {
+          "$ref": "#/$defs/RejectedSampleV1"
+        },
+        "title": "Rejected",
+        "type": "array"
+      }
+    },
+    "title": "ZoneSampleBatchResponseV1",
+    "type": "object"
+  }
+}

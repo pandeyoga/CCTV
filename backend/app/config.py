@@ -24,6 +24,8 @@ class Settings:
     admin_email: str | None = None  # ADMIN_EMAIL + ADMIN_PASSWORD -> platform admin seeded at startup (ADR-024)
     admin_password: str | None = None
     alert_eval_interval_s: int = 0  # background alert evaluation loop; 0 = only on read (tests); env default 60 (ADR-028)
+    telegram_bot_token: str | None = None  # TELEGRAM_BOT_TOKEN; None = channel disabled (ADR-029)
+    snapshot_dir: str = "./data/snapshots"  # SNAPSHOT_DIR; one JPEG per camera (ADR-030)
 
 
 def get_settings() -> Settings:
@@ -51,4 +53,6 @@ def get_settings() -> Settings:
         admin_email=admin_email.lower() if admin_email else None,
         admin_password=admin_password,
         alert_eval_interval_s=int(os.environ.get("ALERT_EVAL_INTERVAL_S", "60")),
+        telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN") or None,
+        snapshot_dir=os.environ.get("SNAPSHOT_DIR") or "./data/snapshots",
     )

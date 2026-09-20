@@ -1,6 +1,6 @@
 import type {
-  AlertListOut, AlertOut, AlertRulesOut, CameraOut, DeviceKeyOut, DeviceOut, DeviceWithStoreOut, HeartbeatHistoryOut, HourlyOut, LoginOut, MemberOut, RangeReportOut, StoreOut,
-  StoreOverviewOut, SummaryOut, TenantOut, UserAdminOut, UserOut,
+  AlertListOut, AlertOut, AlertRulesOut, CameraOut, ChannelsOut, DeviceKeyOut, DeviceOut, DeviceWithStoreOut, EnterSide, HeartbeatHistoryOut, HourlyOut, LineOut, LoginOut, MemberOut, Point, RangeReportOut, StoreOut,
+  StoreOverviewOut, SummaryOut, TelegramTestOut, TenantOut, UserAdminOut, UserOut, ZoneOccupancyOut, ZoneOut,
 } from "./types";
 import { AUTH_DISABLED, getAccessToken, writeSession } from "../lib/session";
 
@@ -74,6 +74,28 @@ export const api = {
   putAlertRules: (storeId: string, body: { heartbeat_lost_min: number; camera_down_min: number; buffer_pending_threshold: number; no_events_min: number | null }) =>
     send<AlertRulesOut>("PUT", `/v1/stores/${storeId}/alert-rules`, body),
   resetAlertRules: (storeId: string) => send<AlertRulesOut>("DELETE", `/v1/stores/${storeId}/alert-rules`),
+  // telegram channel (ADR-029)
+  channels: () => get<ChannelsOut>("/v1/notifications/channels"),
+  putTelegram: (storeId: string, chat_id: string | null) => send<StoreOut>("PUT", `/v1/stores/${storeId}/telegram`, { chat_id }),
+  testTelegram: (storeId: string) => send<TelegramTestOut>("POST", `/v1/stores/${storeId}/telegram/test`),
+  // camera geometry (ADR-030) + zones (ADR-031)
+  lines: (cameraId: string) => get<LineOut[]>(`/v1/cameras/${cameraId}/lines`),
+  putLine: (cameraId: string, lineId: string, body: { ax: number; ay: number; bx: number; by: number; enter_side: EnterSide }) =>
+    send<LineOut>("PUT", `/v1/cameras/${cameraId}/lines/${encodeURIComponent(lineId)}`, body),
+  deleteLine: (cameraId: string, lineId: string) => send<void>("DELETE", `/v1/cameras/${cameraId}/lines/${encodeURIComponent(lineId)}`),
+  snapshotBlob: async (cameraId: string): Promise<Blob | null> => {
+    const token = getAccessToken();
+    const res = await fetch(`${BACKEND_URL}/api/v1/cameras/${cameraId}/snapshot`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new ApiError(res.status, MESSAGES[res.status] ?? `API mengembalikan HTTP ${res.status}`);
+    return res.blob();
+  },
+  storeZones: (storeId: string) => get<ZoneOut[]>(`/v1/stores/${storeId}/zones`),
+  cameraZones: (cameraId: string) => get<ZoneOut[]>(`/v1/cameras/${cameraId}/zones`),
+  createZone: (cameraId: string, body: { external_id: string; name: string; polygon: Point[] }) => send<ZoneOut>("POST", `/v1/cameras/${cameraId}/zones`, body),
+  patchZone: (zoneId: string, body: { name?: string; polygon?: Point[] }) => send<ZoneOut>("PATCH", `/v1/zones/${zoneId}`, body),
+  deleteZone: (zoneId: string) => send<void>("DELETE", `/v1/zones/${zoneId}`),
+  zoneOccupancy: (storeId: string, date: string) => get<ZoneOccupancyOut>(`/v1/stores/${storeId}/zones/occupancy?date=${date}`),
   me: () => get<UserOut>("/auth/me"),
   login: (email: string, password: string) =>
     request<LoginOut>("/auth/login", {

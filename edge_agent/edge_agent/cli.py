@@ -9,13 +9,13 @@ import threading
 
 from .config import EdgeConfig, Secrets, load_config
 from .contracts import event_batch_json_schema
-from .counting import CrossingCounter, DirectedLine
+from .counting import CrossingCounter, DirectedLine, Zone, ZoneSampler
 from .health import HealthState
 from .pipeline import CounterPipeline, PipelineIdentity
 from .redact import redact_text
 from .storage import EventStore
 from .tracking import IouTracker
-from .transport import EventSender, HeartbeatSender
+from .transport import ConfigPoller, EventSender, HeartbeatSender, SnapshotUploader, ZoneSampleSender
 
 
 class _RedactingFormatter(logging.Formatter):
@@ -56,14 +56,22 @@ def build_detector(cfg: EdgeConfig):
     return ScriptedDetector({})
 
 
-def build_pipeline(cfg: EdgeConfig, secrets: Secrets, health: HealthState, store: EventStore) -> CounterPipeline:
-    line = DirectedLine(cfg.line.line_id, cfg.line.ax, cfg.line.ay, cfg.line.bx, cfg.line.by, cfg.line.enter_side)
-    counter = CrossingCounter(line, cfg.counter.hysteresis, cfg.counter.min_confirm_frames,
-                              cfg.counter.track_ttl_frames, cfg.counter.anchor)
+def build_pipeline(cfg: EdgeConfig, secrets: Secrets, health: HealthState, store: EventStore,
+                   on_zone_samples=None) -> CounterPipeline:
+    counter = None
+    if cfg.line is not None:
+        line = DirectedLine(cfg.line.line_id, cfg.line.ax, cfg.line.ay, cfg.line.bx, cfg.line.by, cfg.line.enter_side)
+        counter = CrossingCounter(line, cfg.counter.hysteresis, cfg.counter.min_confirm_frames,
+                                  cfg.counter.track_ttl_frames, cfg.counter.anchor)
+    elif not (cfg.backend and cfg.backend.config_poll_interval_s > 0):
+        raise SystemExit("line is required unless backend.config_poll_interval_s > 0 (server-side line, ADR-030)")
+    interval = cfg.backend.zone_sample_interval_s if cfg.backend else 10.0
+    sampler = ZoneSampler(cfg.camera_id, [Zone(z.zone_id, tuple(tuple(p) for p in z.polygon)) for z in cfg.zones], interval, cfg.counter.anchor)
     tracker = IouTracker(cfg.tracker.min_iou, cfg.tracker.max_age, cfg.tracker.min_hits)
     source = build_source(cfg, secrets, health)
     return CounterPipeline(source, build_detector(cfg), tracker, counter, store, health,
-                           PipelineIdentity(cfg.camera_id, cfg.source.kind), cfg.health_file)
+                           PipelineIdentity(cfg.camera_id, cfg.source.kind), cfg.health_file,
+                           zone_sampler=sampler, on_zone_samples=on_zone_samples)
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -71,23 +79,42 @@ def cmd_run(args: argparse.Namespace) -> int:
     secrets = Secrets.from_env()
     health = HealthState()
     store = EventStore(cfg.store.path, cfg.store.capacity)
-    pipeline = build_pipeline(cfg, secrets, health, store)
     log = logging.getLogger("edge_agent")
-    log.info("device=%s camera=%s source=%s detector=%s", cfg.device_id, cfg.camera_id, cfg.source.kind, cfg.detector.kind)
-
     stop_flag = threading.Event()
     sender_thread = None
     sender = None
+    zone_sender = None
+    threads: list[threading.Thread] = []
     if cfg.backend and not args.no_send:
         if not secrets.api_key:
             raise SystemExit("EDGE_API_KEY env var is required to send events (or pass --no-send)")
+        b = cfg.backend
+        zone_sender = ZoneSampleSender(b.url, secrets.api_key, batch_size=b.batch_size, timeout_s=b.timeout_s, base_backoff_s=b.base_backoff_s, max_backoff_s=b.max_backoff_s)
+    pipeline = build_pipeline(cfg, secrets, health, store, on_zone_samples=zone_sender.enqueue if zone_sender else None)
+    log.info("device=%s camera=%s source=%s detector=%s line=%s zones=%d", cfg.device_id, cfg.camera_id, cfg.source.kind, cfg.detector.kind,
+             cfg.line.line_id if cfg.line else "server", len(cfg.zones))
+
+    if cfg.backend and not args.no_send:
         b = cfg.backend
         sender = EventSender(store, b.url, secrets.api_key, health, batch_size=b.batch_size, timeout_s=b.timeout_s,
                              base_backoff_s=b.base_backoff_s, max_backoff_s=b.max_backoff_s)
         sender_thread = threading.Thread(target=sender.run_forever, args=(stop_flag.is_set,), daemon=True)
         sender_thread.start()
         heartbeat = HeartbeatSender(health, b.url, secrets.api_key, interval_s=b.heartbeat_interval_s, timeout_s=b.timeout_s)
-        threading.Thread(target=heartbeat.run_forever, args=(stop_flag.is_set,), daemon=True).start()
+        threads.append(threading.Thread(target=heartbeat.run_forever, args=(stop_flag.is_set,), daemon=True))
+        threads.append(threading.Thread(target=zone_sender.run_forever, args=(stop_flag.is_set,), daemon=True))
+        if b.config_poll_interval_s > 0:
+            poller = ConfigPoller(b.url, secrets.api_key, pipeline.apply_config, interval_s=b.config_poll_interval_s, timeout_s=b.timeout_s)
+            if cfg.line is None:  # no local line: try once synchronously so counting can start with the first frame
+                poller.poll_once()
+                if poller.applied_version is None:
+                    log.warning("no server config yet; counting starts when the first config arrives")
+            threads.append(threading.Thread(target=poller.run_forever, args=(stop_flag.is_set,), daemon=True))
+        if b.snapshot_interval_s > 0:
+            uploader = SnapshotUploader(cfg.camera_id, lambda: pipeline.last_image, b.url, secrets.api_key, interval_s=b.snapshot_interval_s, timeout_s=b.timeout_s)
+            threads.append(threading.Thread(target=uploader.run_forever, args=(stop_flag.is_set,), daemon=True))
+        for t in threads:
+            t.start()
     else:
         log.warning("sending disabled; events accumulate in %s", cfg.store.path)
 

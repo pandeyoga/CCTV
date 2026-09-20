@@ -1,0 +1,169 @@
+{
+  "response": {
+    "$defs": {
+      "CameraConfigV1": {
+        "additionalProperties": false,
+        "properties": {
+          "camera_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/$defs/LineV1"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/$defs/ZoneV1"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "camera_id"
+        ],
+        "title": "CameraConfigV1",
+        "type": "object"
+      },
+      "LineV1": {
+        "additionalProperties": false,
+        "description": "Counting line in normalized coordinates (0..1, origin top-left, y down); direction a->b; `enter_side` relative to it.",
+        "properties": {
+          "ax": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Ax",
+            "type": "number"
+          },
+          "ay": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Ay",
+            "type": "number"
+          },
+          "bx": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Bx",
+            "type": "number"
+          },
+          "by": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "By",
+            "type": "number"
+          },
+          "enter_side": {
+            "enum": [
+              "left",
+              "right"
+            ],
+            "title": "Enter Side",
+            "type": "string"
+          },
+          "line_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Line Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line_id",
+          "ax",
+          "ay",
+          "bx",
+          "by",
+          "enter_side"
+        ],
+        "title": "LineV1",
+        "type": "object"
+      },
+      "ZoneV1": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "polygon": {
+            "description": "Normalized vertices, closed implicitly",
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 64,
+            "minItems": 3,
+            "title": "Polygon",
+            "type": "array"
+          },
+          "zone_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Zone Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone_id",
+          "name",
+          "polygon"
+        ],
+        "title": "ZoneV1",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "GET /api/v1/devices/me/config. `config_version` changes whenever any line/zone of the device's cameras changes;\nthe edge reloads without restart when it differs from the last applied version.",
+    "properties": {
+      "cameras": {
+        "items": {
+          "$ref": "#/$defs/CameraConfigV1"
+        },
+        "title": "Cameras",
+        "type": "array"
+      },
+      "config_version": {
+        "maxLength": 64,
+        "minLength": 1,
+        "title": "Config Version",
+        "type": "string"
+      },
+      "generated_at": {
+        "format": "date-time",
+        "title": "Generated At",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": 1,
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "config_version",
+      "generated_at",
+      "cameras"
+    ],
+    "title": "DeviceConfigV1",
+    "type": "object"
+  }
+}

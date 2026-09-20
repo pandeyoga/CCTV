@@ -202,11 +202,12 @@ async def _device_in_store(s: AsyncSession, device_id: UUID, store: Store) -> De
 
 
 def _camera_out(c: Camera) -> CameraOut:
-    return CameraOut(camera_id=c.id, store_id=c.store_id, device_id=c.device_id, external_id=c.external_id, name=c.name, created_at=c.created_at)
+    return CameraOut(camera_id=c.id, store_id=c.store_id, device_id=c.device_id, external_id=c.external_id, name=c.name, snapshot_at=c.snapshot_at, created_at=c.created_at)
 
 
 def _store_out(st: Store) -> StoreOut:
-    return StoreOut(store_id=st.id, tenant_id=st.tenant_id, name=st.name, timezone=st.timezone, open_time=st.open_time, close_time=st.close_time)
+    return StoreOut(store_id=st.id, tenant_id=st.tenant_id, name=st.name, timezone=st.timezone, open_time=st.open_time, close_time=st.close_time,
+                    telegram_chat_id=st.telegram_chat_id)
 
 
 async def _name_free(s: AsyncSession, model, where, msg: str) -> None:

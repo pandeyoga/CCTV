@@ -22,10 +22,12 @@ Tujuan: operator/pemilik toko bisa mendaftarkan toko, perangkat (dapat API key),
 - ✅ Jam operasional toko (ADR-026) — laporan & flag perangkat mengabaikan jam tutup.
 - ✅ Riwayat heartbeat 24 jam per perangkat (ADR-027) — timeline di halaman Perangkat.
 - ✅ Aturan alert per toko (tanpa heartbeat > N mnt, kamera terputus > N mnt, buffer penuh ≥ N, tidak ada event pada jam buka) + pusat notifikasi in-app `/notifikasi` dengan badge di nav, tandai dilihat, riwayat (ADR-028).
-- ⏳ Kanal email/WhatsApp/Telegram — menunggu pilihan penyedia.
-- ⏳ Edge: pembaruan agent terkontrol (versi, rollout), konfigurasi garis dari server (`count_lines` sudah ada di model).
+- ✅ Kanal Telegram per toko (ADR-029) — token bot di server, chat_id per toko, pesan uji; email/WhatsApp masih ditunda.
+- ✅ Konfigurasi garis dari server + snapshot kamera + hot-reload edge (ADR-030). ⏳ Pembaruan agent terkontrol (versi, rollout).
 
-## Fase 4 — Analitik zona: okupansi, dwell, antrean (fitur A/B dokumen)
+## Fase 4 — Analitik zona: okupansi, dwell, antrean (fitur A/B dokumen)  ← **irisan pertama SELESAI (2026-06, ADR-031)**
+- ✅ Zona poligon per kamera (editor di Pengaturan), kontrak `zone_sample_v1`, okupansi per jam, panel okupansi zona di dashboard.
+- ⏳ Dwell time per track, antrean (zona khusus + estimasi waktu tunggu), retensi/pre-agregasi sampel.
 - Edge: zona poligon per kamera, hitung orang di zona per interval, dwell time per track; antrean = zona khusus + estimasi waktu tunggu.
 - Kontrak event baru (`zone_sample_v1`), agregasi per 5 menit, dashboard heatmap zona sederhana + KPI antrean.
 - Uji penerimaan lapangan sesuai dokumen (hitung pintu vs manual, panjang antrean, waktu tunggu).

@@ -13,7 +13,8 @@ from .config import Settings, get_settings
 from .db import Database
 from .models import Base, Tenant
 from .auth import LoginThrottle
-from .routers import alerts, auth, devices, events, manage, reports, stores
+from .routers import alerts, auth, camera_config, devices, events, manage, reports, stores, zones
+from .telegram import notify_pending
 from .users import seed_platform_admin
 from sqlalchemy import select
 
@@ -21,8 +22,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("alerts")
 
 
-async def alert_loop(db: Database, interval_s: int) -> None:
-    """Evaluate alert rules for every tenant so incidents are recorded even when no dashboard is open (ADR-028)."""
+async def alert_loop(db: Database, interval_s: int, telegram_token: str | None) -> None:
+    """Evaluate alert rules for every tenant so incidents are recorded even when no dashboard is open (ADR-028),
+    then push new/resolved incidents to Telegram (ADR-029)."""
     while True:
         await asyncio.sleep(interval_s)
         try:
@@ -30,6 +32,7 @@ async def alert_loop(db: Database, interval_s: int) -> None:
                 tenant_ids = list((await s.execute(select(Tenant.id))).scalars())
                 if tenant_ids:
                     await evaluate(s, tenant_ids, datetime.now(timezone.utc))
+                    await notify_pending(s, telegram_token)
         except Exception:  # keep the loop alive; the next tick retries
             log.exception("alert evaluation failed")
 
@@ -49,7 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.db = db
         app.state.settings = settings
         app.state.login_throttle = LoginThrottle()
-        task = asyncio.create_task(alert_loop(db, settings.alert_eval_interval_s)) if settings.alert_eval_interval_s > 0 else None
+        task = asyncio.create_task(alert_loop(db, settings.alert_eval_interval_s, settings.telegram_bot_token)) if settings.alert_eval_interval_s > 0 else None
         try:
             yield
         finally:
@@ -72,6 +75,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(manage.router)
     app.include_router(reports.router)
     app.include_router(alerts.router)
+    app.include_router(camera_config.router)
+    app.include_router(zones.router)
 
     @app.get("/api/health")
     async def health():

@@ -8,7 +8,9 @@ import { PageHeader } from "../components/dashboard/PageHeader";
 import { DashboardSkeleton } from "../components/dashboard/Skeletons";
 import { EmptyState, ErrorState, NoStores, StaleBanner } from "../components/dashboard/States";
 import { Toolbar } from "../components/dashboard/Toolbar";
+import { ZonePanel } from "../components/dashboard/ZonePanel";
 import { useStoreDay, useStores } from "../hooks/useDashboardData";
+import { useStoreZones, useZoneOccupancy } from "../hooks/useGeometry";
 import { useNow } from "../hooks/useNow";
 import { addDays, todayInTz } from "../lib/time";
 
@@ -30,6 +32,8 @@ export default function Dashboard() {
   }, [store, storeId]);
 
   const day = useStoreDay(store?.store_id, activeDate);
+  const zones = useStoreZones(store?.store_id);
+  const occupancy = useZoneOccupancy(store?.store_id, activeDate);
   const dayError = (day.summary.error ?? day.hourly.error ?? day.devices.error) as Error | null;
   const hasDayData = day.summary.data !== undefined || day.hourly.data !== undefined || day.devices.data !== undefined;
   const dayLoaded = Boolean(day.summary.data && day.hourly.data && day.devices.data);
@@ -53,6 +57,7 @@ export default function Dashboard() {
           <div className="lg:col-span-2"><HourlyChart hourly={day.hourly.data} /></div>
           <DeviceList devices={day.devices.data} tz={tz} now={now} />
         </div>
+        <ZonePanel zones={zones.data} occupancy={occupancy.data} tz={tz} now={now} date={activeDate} />
       </>
     );
   };
