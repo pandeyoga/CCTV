@@ -1,19 +1,37 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from .alerts import evaluate
 from .config import Settings, get_settings
 from .db import Database
-from .models import Base
+from .models import Base, Tenant
 from .auth import LoginThrottle
-from .routers import auth, devices, events, manage, reports, stores
+from .routers import alerts, auth, devices, events, manage, reports, stores
 from .users import seed_platform_admin
+from sqlalchemy import select
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("alerts")
+
+
+async def alert_loop(db: Database, interval_s: int) -> None:
+    """Evaluate alert rules for every tenant so incidents are recorded even when no dashboard is open (ADR-028)."""
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            async with db.sessionmaker() as s:
+                tenant_ids = list((await s.execute(select(Tenant.id))).scalars())
+                if tenant_ids:
+                    await evaluate(s, tenant_ids, datetime.now(timezone.utc))
+        except Exception:  # keep the loop alive; the next tick retries
+            log.exception("alert evaluation failed")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -31,9 +49,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.db = db
         app.state.settings = settings
         app.state.login_throttle = LoginThrottle()
+        task = asyncio.create_task(alert_loop(db, settings.alert_eval_interval_s)) if settings.alert_eval_interval_s > 0 else None
         try:
             yield
         finally:
+            if task:
+                task.cancel()
             await db.dispose()
 
     app = FastAPI(title="People Counter API", version="0.2.0", lifespan=lifespan)
@@ -41,7 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins or ["*"],
         allow_credentials=False,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
     app.include_router(auth.router)
@@ -50,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stores.router)
     app.include_router(manage.router)
     app.include_router(reports.router)
+    app.include_router(alerts.router)
 
     @app.get("/api/health")
     async def health():

@@ -100,6 +100,42 @@ class DeviceHeartbeat(Base):
 HEARTBEAT_RETENTION_DAYS = 7
 
 
+class AlertRule(Base):
+    """Per-store thresholds (ADR-028). One row per store, created on first PUT; stores without a row use the defaults."""
+
+    __tablename__ = "alert_rules"
+    store_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("stores.id"), primary_key=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"), index=True)
+    heartbeat_lost_min: Mapped[int] = mapped_column(Integer, default=3)  # no heartbeat for > N minutes
+    camera_down_min: Mapped[int] = mapped_column(Integer, default=2)  # source_down for > N minutes
+    buffer_pending_threshold: Mapped[int] = mapped_column(Integer, default=1000)  # pending_events >= N
+    no_events_min: Mapped[int | None] = mapped_column(Integer)  # no count event for > N minutes while open; NULL = off (no ORM default: None must persist)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)
+
+
+ALERT_RULES = ("heartbeat_lost", "camera_down", "buffer_full", "no_events_open_hours")
+
+
+class Alert(Base):
+    """One row per incident (ADR-028): opened when a rule fires, resolved when the condition clears. At most one open
+    row per (store, device, rule); history is kept."""
+
+    __tablename__ = "alerts"
+    __table_args__ = (Index("ix_alerts_tenant_opened", "tenant_id", "opened_at"), Index("ix_alerts_store_resolved", "store_id", "resolved_at"))
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id"))
+    store_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("stores.id"))
+    device_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("devices.id"))  # NULL for store-level rules
+    rule: Mapped[str] = mapped_column(String(32))
+    severity: Mapped[str] = mapped_column(String(8))  # warning | critical
+    message: Mapped[str] = mapped_column(String(256))
+    opened_at: Mapped[datetime] = mapped_column(UTCDateTime)  # when the condition started (threshold crossed)
+    last_seen_at: Mapped[datetime] = mapped_column(UTCDateTime)  # last evaluation that still saw the condition
+    resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    acknowledged_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("dashboard_users.id"))
+
+
 class DashboardUser(Base):
     """Operator-provisioned dashboard login (email + bcrypt hash). No public signup."""
 

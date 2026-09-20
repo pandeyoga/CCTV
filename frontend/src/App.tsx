@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
 import Dashboard from "./pages/Dashboard";
+import Alerts from "./pages/Alerts";
 import Devices from "./pages/Devices";
 import Login from "./pages/Login";
 import Manage from "./pages/Manage";
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/perangkat" element={<RequireAuth><Devices /></RequireAuth>} />
+          <Route path="/notifikasi" element={<RequireAuth><Alerts /></RequireAuth>} />
           <Route path="/laporan" element={<RequireAuth><Reports /></RequireAuth>} />
           <Route path="/pengaturan" element={<RequireAuth><Manage /></RequireAuth>} />
           <Route path="*" element={<Navigate to="/" replace />} />

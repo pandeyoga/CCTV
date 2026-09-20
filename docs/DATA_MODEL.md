@@ -113,3 +113,25 @@ Indexes: `(store_id, event_ts)`, `(camera_id, event_ts)`, `(tenant_id, event_ts)
 4. Aggregations bucket `event_ts AT TIME ZONE stores.timezone`.
 5. No deletes of `count_events` through the API in the MVP.
 6. Dashboard reads are filtered by `tenant_memberships` of the authenticated user; a store outside those tenants is 404. Heartbeats update only the authenticated device row.
+
+### alert_rules  (per-store thresholds, ADR-028; optional row — code defaults apply when absent)
+| store_id | uuid pk fk stores |
+| tenant_id | uuid fk tenants |
+| heartbeat_lost_min, camera_down_min | int | minutes |
+| buffer_pending_threshold | int | `pending_events ≥` |
+| no_events_min | int nullable | NULL = rule off (no ORM default on purpose) |
+| updated_at | timestamptz |
+
+### alerts  (incidents, ADR-028)
+| id | uuid pk |
+| tenant_id, store_id | fks |
+| device_id | uuid fk devices nullable | NULL for store-level rules |
+| rule | text | `heartbeat_lost` / `camera_down` / `buffer_full` / `no_events_open_hours` |
+| severity | text | `warning` / `critical` |
+| message | text | server-generated (id-ID) |
+| opened_at | timestamptz | when the threshold was crossed |
+| last_seen_at | timestamptz | last evaluation that still saw the condition |
+| resolved_at | timestamptz nullable | NULL = open; at most one open row per `(store_id, device_id, rule)` (enforced in code) |
+| acknowledged_at | timestamptz nullable |
+| acknowledged_by | uuid fk dashboard_users nullable |
+Indexes: `(tenant_id, opened_at)`, `(store_id, resolved_at)`.

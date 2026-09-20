@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Camera, Cpu, KeyRound, Pencil, Plus, Power, Trash2 } from "lucide-react";
+import { Bell, Camera, Cpu, KeyRound, Pencil, Plus, Power, Trash2 } from "lucide-react";
 import { api } from "../../api/client";
 import type { CameraOut, DeviceKeyOut, DeviceOut, StoreOut } from "../../api/types";
+import { useAlertRules } from "../../hooks/useAlerts";
 import { useCameras, useManageMutation } from "../../hooks/useManageData";
 import { useNow } from "../../hooks/useNow";
 import { DEVICE_STATUS, statusOf } from "../../lib/deviceStatus";
 import { relativeTime } from "../../lib/time";
+import { AlertRulesDialog } from "./AlertRulesDialog";
 import { CameraDialog } from "./CameraDialog";
 import { DeviceDialog } from "./DeviceDialogs";
 import { StoreDialog } from "./StoreDialog";
@@ -76,7 +78,8 @@ const CameraLine = ({ c, storeId, devices, canManage }: { c: CameraOut; storeId:
 export const StoreCard = ({ store, canManage, onKey }: Props) => {
   const devices = useQuery({ queryKey: ["devices", store.store_id], queryFn: () => api.devices(store.store_id) });
   const cameras = useCameras(store.store_id);
-  const [dialog, setDialog] = useState<"store" | "device" | "camera" | null>(null);
+  const rules = useAlertRules(store.store_id);
+  const [dialog, setDialog] = useState<"store" | "device" | "camera" | "rules" | null>(null);
   const close = () => setDialog(null);
   const list = (items: number, empty: string) => (items === 0 ? <p className="px-4 py-3 text-xs text-txt-3">{empty}</p> : null);
   return (
@@ -84,9 +87,15 @@ export const StoreCard = ({ store, canManage, onKey }: Props) => {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div className="min-w-0">
           <h3 data-testid="manage-store-name" className="truncate text-base font-semibold text-txt">{store.name}</h3>
-          <p className="text-xs text-txt-2">Zona waktu {store.timezone} · <span data-testid="manage-store-hours">{store.open_time ? `buka ${store.open_time}–${store.close_time}` : "buka 24 jam"}</span></p>
+          <p className="text-xs text-txt-2">Zona waktu {store.timezone} · <span data-testid="manage-store-hours">{store.open_time ? `buka ${store.open_time}–${store.close_time}` : "buka 24 jam"}</span>
+            {rules.data && <> · <span data-testid="manage-store-alert-rules">{rules.data.is_default ? "alert bawaan" : "alert disesuaikan"}</span></>}</p>
         </div>
-        {canManage && <button type="button" onClick={() => setDialog("store")} className="ctl h-9" data-testid="manage-store-edit"><Pencil className="h-4 w-4" /> Ubah toko</button>}
+        {canManage && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setDialog("rules")} disabled={!rules.data} className="ctl h-9" data-testid="manage-store-alert-rules-button"><Bell className="h-4 w-4" /> Aturan alert</button>
+            <button type="button" onClick={() => setDialog("store")} className="ctl h-9" data-testid="manage-store-edit"><Pencil className="h-4 w-4" /> Ubah toko</button>
+          </div>
+        )}
       </header>
       <div className="grid gap-0 md:grid-cols-2 md:divide-x md:divide-line">
         <div>
@@ -113,6 +122,7 @@ export const StoreCard = ({ store, canManage, onKey }: Props) => {
         </div>
       </div>
       {dialog === "store" && <StoreDialog open onClose={close} tenantId={store.tenant_id} store={store} />}
+      {dialog === "rules" && rules.data && <AlertRulesDialog open onClose={close} storeId={store.store_id} storeName={store.name} rules={rules.data} />}
       {dialog === "device" && <DeviceDialog open onClose={close} storeId={store.store_id} onCreated={onKey} />}
       {dialog === "camera" && <CameraDialog open onClose={close} storeId={store.store_id} devices={devices.data ?? []} />}
     </section>

@@ -175,6 +175,15 @@
     from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
   }
+  /* centred dialogs: keep the -50% translate inside the animation so it is never overridden */
+  .modal-in {
+    transform: translate(-50%, -50%);
+    animation: modal-in var(--dur) ease-out both;
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translate(-50%, calc(-50% + 6px)); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
+  }
 
   /* Login page: layered charcoal hero (radial glow + dot grid + grain), glass illustration cards */
   .login-hero {
@@ -254,7 +263,7 @@
     .login-glass, .login-bar, .login-pulse { animation: none !important; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .fade-in, .animate-spin, .animate-pulse {
+    .fade-in, .modal-in, .animate-spin, .animate-pulse {
       animation: none !important;
     }
     .ctl, .rail-item {

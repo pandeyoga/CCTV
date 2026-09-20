@@ -1,5 +1,5 @@
 import type {
-  CameraOut, DeviceKeyOut, DeviceOut, DeviceWithStoreOut, HeartbeatHistoryOut, HourlyOut, LoginOut, MemberOut, RangeReportOut, StoreOut,
+  AlertListOut, AlertOut, AlertRulesOut, CameraOut, DeviceKeyOut, DeviceOut, DeviceWithStoreOut, HeartbeatHistoryOut, HourlyOut, LoginOut, MemberOut, RangeReportOut, StoreOut,
   StoreOverviewOut, SummaryOut, TenantOut, UserAdminOut, UserOut,
 } from "./types";
 import { AUTH_DISABLED, getAccessToken, writeSession } from "../lib/session";
@@ -55,7 +55,7 @@ async function request<T>(path: string, init: RequestInit = {}, withAuth = true)
 }
 
 const get = <T,>(path: string) => request<T>(path);
-const send = <T,>(method: "POST" | "PATCH" | "DELETE", path: string, body?: unknown) =>
+const send = <T,>(method: "POST" | "PATCH" | "PUT" | "DELETE", path: string, body?: unknown) =>
   request<T>(path, { method, headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
 
 export const api = {
@@ -67,6 +67,13 @@ export const api = {
   report: (storeId: string, from: string, to: string) => get<RangeReportOut>(`/v1/stores/${storeId}/report?from=${from}&to=${to}`),
   overview: () => get<StoreOverviewOut[]>("/v1/overview"),
   heartbeatHistory: (deviceId: string, hours = 24) => get<HeartbeatHistoryOut>(`/v1/devices/${deviceId}/heartbeats?hours=${hours}`),
+  // alerts (ADR-028)
+  alerts: (status: "open" | "resolved" | "all", storeId?: string) => get<AlertListOut>(`/v1/alerts?status=${status}${storeId ? `&store_id=${storeId}` : ""}`),
+  ackAlert: (id: string) => send<AlertOut>("POST", `/v1/alerts/${id}/ack`),
+  alertRules: (storeId: string) => get<AlertRulesOut>(`/v1/stores/${storeId}/alert-rules`),
+  putAlertRules: (storeId: string, body: { heartbeat_lost_min: number; camera_down_min: number; buffer_pending_threshold: number; no_events_min: number | null }) =>
+    send<AlertRulesOut>("PUT", `/v1/stores/${storeId}/alert-rules`, body),
+  resetAlertRules: (storeId: string) => send<AlertRulesOut>("DELETE", `/v1/stores/${storeId}/alert-rules`),
   me: () => get<UserOut>("/auth/me"),
   login: (email: string, password: string) =>
     request<LoginOut>("/auth/login", {

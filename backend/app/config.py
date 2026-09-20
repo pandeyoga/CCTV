@@ -23,6 +23,7 @@ class Settings:
     dashboard_auth: str = "required"  # "disabled" only for explicit local development (never a fallback)
     admin_email: str | None = None  # ADMIN_EMAIL + ADMIN_PASSWORD -> platform admin seeded at startup (ADR-024)
     admin_password: str | None = None
+    alert_eval_interval_s: int = 0  # background alert evaluation loop; 0 = only on read (tests); env default 60 (ADR-028)
 
 
 def get_settings() -> Settings:
@@ -49,4 +50,5 @@ def get_settings() -> Settings:
         dashboard_auth=auth_mode,
         admin_email=admin_email.lower() if admin_email else None,
         admin_password=admin_password,
+        alert_eval_interval_s=int(os.environ.get("ALERT_EVAL_INTERVAL_S", "60")),
     )

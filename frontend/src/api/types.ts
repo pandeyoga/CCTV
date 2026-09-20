@@ -168,6 +168,44 @@ export interface StoreOverviewOut {
   close_time: string | null;
 }
 
+// ---------------------------------------------------------------- alerts (ADR-028)
+export type AlertRuleName = "heartbeat_lost" | "camera_down" | "buffer_full" | "no_events_open_hours";
+export type AlertSeverity = "warning" | "critical";
+
+export interface AlertRulesOut {
+  store_id: string;
+  heartbeat_lost_min: number;
+  camera_down_min: number;
+  buffer_pending_threshold: number;
+  no_events_min: number | null; // null = rule off
+  is_default: boolean;
+}
+
+export interface AlertOut {
+  alert_id: string;
+  tenant_id: string;
+  store_id: string;
+  store_name: string;
+  store_timezone: string;
+  device_id: string | null;
+  device_name: string | null;
+  rule: AlertRuleName;
+  severity: AlertSeverity;
+  message: string;
+  opened_at: string;
+  last_seen_at: string;
+  resolved_at: string | null;
+  acknowledged_at: string | null;
+  acknowledged_by_email: string | null;
+}
+
+export interface AlertListOut {
+  evaluated_at: string;
+  open_count: number;
+  unacknowledged_count: number;
+  alerts: AlertOut[];
+}
+
 // ---------------------------------------------------------------- heartbeat history (ADR-027)
 export type HeartbeatState = "connected" | "camera_down" | "stale" | "unknown";
 

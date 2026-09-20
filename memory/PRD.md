@@ -26,12 +26,15 @@ Edge (Python) → HTTPS `/api/v1/events/batch` → Backend (FastAPI + PostgreSQL
 - 2026-06 — **Roadmap written** (`docs/ROADMAP.md`, 5 phases; user choice: usability first, subscription last) and **Phase 1 done (ADR-024)**: roles platform admin / owner / staff, env-seeded admin, management API (tenants, stores, devices with one-time API key + rotation, cameras, members, users, change-password), `/pengaturan` UI with tabs. Backend 51 tests, live QA iteration_7 all green.
 
 - 2026-06 — **Phase 2 done (ADR-025)**: `/laporan` — multi-store overview table, date-range report (7/30/custom ≤ 92 days) with previous-period %, daily chart, busiest day/hours, CSV export. Backend 54 tests, 4 frontend unit tests, live QA iteration_8 all green; synthetic verification events removed afterwards.
+- 2026-06 — **Phase 3a (ADR-026/027)**: store opening hours (reports/overview ignore closed hours, device problems = 0 while closed) + 24 h heartbeat history timeline per device. Backend live QA iteration_9 6/6; frontend live QA iteration_10 15/15.
+- 2026-06 — **Phase 3b (ADR-028)**: per-store alert rules (heartbeat lost, camera down, buffer full, no events during opening hours) evaluated server-side (on read + 60 s loop), incidents with open/resolve/acknowledge, `/notifikasi` notification centre + bell badge, "Aturan alert" dialog in Pengaturan. Backend 66 tests green, tsc clean. Workspace restored from GitHub (SQLite, seeded users in `memory/test_credentials.md`).
 
 ## Backlog (prioritized) — see docs/ROADMAP.md
-- P0 Phase 3: alert rules (no heartbeat > N min, camera down, buffer full, no events during opening hours) + in-app notification centre (bell in nav rail), heartbeat history 24 h per device; email channel once a provider is chosen.
 - P0 Field measurement: real door RTSP camera, observer tally per `docs/PILOT_RUNBOOK.md` §7.
+- P1 Alert channels: email (provider undecided) / WhatsApp / Telegram; per-user mute.
+- P1 Edge: controlled agent update rollout; server-side count-line config (`count_lines` exists).
 - P1 Scheduled daily/weekly report email (blocked on email provider choice).
-- P1 Run `docker compose up` + `alembic upgrade head` on PostgreSQL (migrations `3b9c2d1e5a70`, `c4d5e6f7a8b9` untested on PG).
+- P1 Run `docker compose up` + `alembic upgrade head` on PostgreSQL (migrations `3b9c2d1e5a70`…`e6f7a8b9c0d1` untested on PG).
 - P1 ByteTrack adapter (MIT) behind `Tracker` protocol; legal confirmation of YOLOX weights license.
 - P2 Phase 4: zone occupancy / dwell / queue analytics (new edge contract). Phase 5: subscription packages + billing (manual first, gateway later).
 - P2 Audit log of management actions; styled confirm dialogs; store archive.

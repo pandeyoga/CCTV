@@ -17,7 +17,7 @@ export const Modal = ({ open, onClose, title, description, children, testId }: P
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-ink/40 backdrop-blur-[2px] fade-in" />
       <DialogPrimitive.Content data-testid={testId}
-        className="card fade-in fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto p-0 focus:outline-none">
+        className="card modal-in fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-lg overflow-y-auto p-0 focus:outline-none">
         <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
           <div>
             <DialogPrimitive.Title className="text-base font-semibold text-txt">{title}</DialogPrimitive.Title>

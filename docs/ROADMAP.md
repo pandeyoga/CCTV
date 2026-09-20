@@ -18,11 +18,12 @@ Tujuan: operator/pemilik toko bisa mendaftarkan toko, perangkat (dapat API key),
 - Multi-toko: tabel semua toko sekali lihat (masuk/keluar hari ini, vs kemarin, rata-rata 7 hari, event terakhir, perangkat bermasalah).
 - Ditunda: ringkasan email harian/mingguan (butuh penyedia email — belum dipilih).
 
-## Fase 3 — Notifikasi & kesehatan operasional
-- Aturan alert: perangkat tanpa heartbeat > N menit, kamera terputus, buffer penuh, tidak ada event pada jam buka.
-- Kanal: in-app (pusat notifikasi) dulu; email/WhatsApp/Telegram menyusul.
-- Riwayat heartbeat 24 jam per perangkat (timeline naik/turun) + log alert.
-- Edge: pembaruan agent terkontrol (versi, rollout), konfigurasi garis dari server (`count_lines` sudah ada di model).
+## Fase 3 — Notifikasi & kesehatan operasional  ← **SELESAI sebagian (2026-06, ADR-026/027/028)**
+- ✅ Jam operasional toko (ADR-026) — laporan & flag perangkat mengabaikan jam tutup.
+- ✅ Riwayat heartbeat 24 jam per perangkat (ADR-027) — timeline di halaman Perangkat.
+- ✅ Aturan alert per toko (tanpa heartbeat > N mnt, kamera terputus > N mnt, buffer penuh ≥ N, tidak ada event pada jam buka) + pusat notifikasi in-app `/notifikasi` dengan badge di nav, tandai dilihat, riwayat (ADR-028).
+- ⏳ Kanal email/WhatsApp/Telegram — menunggu pilihan penyedia.
+- ⏳ Edge: pembaruan agent terkontrol (versi, rollout), konfigurasi garis dari server (`count_lines` sudah ada di model).
 
 ## Fase 4 — Analitik zona: okupansi, dwell, antrean (fitur A/B dokumen)
 - Edge: zona poligon per kamera, hitung orang di zona per interval, dwell time per track; antrean = zona khusus + estimasi waktu tunggu.

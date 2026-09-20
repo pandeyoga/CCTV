@@ -153,6 +153,49 @@ class HeartbeatHistoryOut(BaseModel):
     segments: list[HeartbeatSegment]
 
 
+# ----------------------------------------------------------------------------- alerts (ADR-028)
+AlertRuleName = Literal["heartbeat_lost", "camera_down", "buffer_full", "no_events_open_hours"]
+
+
+class AlertRulesOut(BaseModel):
+    """Per-store thresholds; `is_default` is true while the store has no saved row."""
+
+    model_config = ConfigDict(extra="forbid")
+    store_id: UUID
+    heartbeat_lost_min: int
+    camera_down_min: int
+    buffer_pending_threshold: int
+    no_events_min: int | None  # None = rule off
+    is_default: bool
+
+
+class AlertOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    alert_id: UUID
+    tenant_id: UUID
+    store_id: UUID
+    store_name: str
+    store_timezone: str
+    device_id: UUID | None
+    device_name: str | None
+    rule: AlertRuleName
+    severity: Literal["warning", "critical"]
+    message: str
+    opened_at: datetime
+    last_seen_at: datetime
+    resolved_at: datetime | None
+    acknowledged_at: datetime | None
+    acknowledged_by_email: str | None
+
+
+class AlertListOut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    evaluated_at: datetime
+    open_count: int
+    unacknowledged_count: int  # open and not yet acknowledged (bell badge)
+    alerts: list[AlertOut]
+
+
 # ----------------------------------------------------------------------------- management (ADR-024)
 class TenantOut(BaseModel):
     model_config = ConfigDict(extra="forbid")
