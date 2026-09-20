@@ -28,7 +28,7 @@ class AlertRulesIn(BaseModel):
     heartbeat_lost_min: int = Field(ge=1, le=1440)
     camera_down_min: int = Field(ge=1, le=1440)
     buffer_pending_threshold: int = Field(ge=1, le=1_000_000)
-    no_events_min: int | None = Field(default=None, ge=5, le=1440)
+    no_events_min: int | None = Field(..., ge=5, le=1440)  # required; explicit null turns the rule off
 
 
 def _rules_out(store_id: UUID, row: AlertRule | None) -> AlertRulesOut:

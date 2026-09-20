@@ -32,11 +32,11 @@ export default function Alerts() {
   const ack = useManageMutation((id: string) => api.ackAlert(id), [["alerts"]], "");
   const ackAll = async () => {
     const pending = (q.data?.alerts ?? []).filter((a) => a.resolved_at === null && !a.acknowledged_at && canManage(a.tenant_id));
-    try {
-      await Promise.all(pending.map((a) => api.ackAlert(a.alert_id)));
-      await qc.invalidateQueries({ queryKey: ["alerts"] });
-      toast.success(`${pending.length} alert ditandai dilihat`);
-    } catch (e) { toast.error(errorMessage(e)); }
+    const results = await Promise.allSettled(pending.map((a) => api.ackAlert(a.alert_id)));
+    await qc.invalidateQueries({ queryKey: ["alerts"] });
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length === 0) toast.success(`${pending.length} alert ditandai dilihat`);
+    else toast.error(`${failed.length} dari ${pending.length} alert gagal ditandai: ${errorMessage((failed[0] as PromiseRejectedResult).reason)}`);
   };
   const unacked = useMemo(() => (q.data?.alerts ?? []).filter((a) => a.resolved_at === null && !a.acknowledged_at && canManage(a.tenant_id)).length, [q.data, canManage]);
 

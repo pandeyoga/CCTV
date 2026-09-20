@@ -1,0 +1,37 @@
+{
+  "summary": "Full backend + frontend QA of ADR-028 alerts on preview. Backend 16/17 pytest passing (see qa_live_alerts.py). Frontend: all 15 spec assertions on /notifikasi (owner + staff) and Pengaturan Alert Rules dialog passed. Cleanup: TEST_alert_* devices deactivated, alert-rules restored to defaults via DELETE.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/v1/stores/{id}/alert-rules", "issue": "Spec requires missing field -> 422, but body {heartbeat_lost_min,camera_down_min,buffer_pending_threshold} (no `no_events_min`) currently returns 200 with no_events_min:null. Root cause: AlertRulesIn.no_events_min declares `default=None` so pydantic treats it optional. If contract requires 422 the schema should drop the default (declare `no_events_min: int | None = Field(...)` i.e. explicit required, using None sentinel from client). Other omissions correctly 422."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/qa_live_alerts.py",
+    "/app/test_reports/pytest/iteration_11.xml"
+  ],
+  "action_items": [
+    "Backend: Make `no_events_min` an explicit required field (no default) in AlertRulesIn so PUT with missing field returns 422 per contract."
+  ],
+  "critical_code_review_comments": [
+    "routers/alerts.py AlertRulesIn: `no_events_min: int | None = Field(default=None, ge=5, le=1440)` allows omission (200 instead of spec's 422). Fix: use `Field(..., ge=5, le=1440)` and require callers to send explicit null. `extra=forbid` already correctly rejects unknown keys.",
+    "alerts.evaluate() is O(devices * heartbeats) due to per-device `_down_since` subquery invoked inside store loop; acceptable for pilot scale but consider batch loading if device count grows.",
+    "AlertBadge hides completely when unacked=0 (nav-alerts-badge disappears). Correct behaviour but note: any test asserting 'badge present' will fail once all open alerts are acked. Consider changing test spec to assert presence only when unacked>=1, or seed an unacked alert first (done here via TEST_alert_* buffer_full).",
+    "Alerts.tsx `ackAll` fires Promise.all without per-alert error handling; a single 403/404 will surface only the first error via toast. Minor UX only."
+  ],
+  "updated_files": [
+    "/app/backend/tests/qa_live_alerts.py (new)"
+  ],
+  "success_rate": {"backend": "16/17 (94%)", "frontend": "100% (all spec assertions)"},
+  "test_credentials": "owner@tokopilot.id / Owner-Pilot-2026!  ·  staff@tokopilot.id / Staff-Pilot-2026!",
+  "seed_data_creation": "Created 2 TEST_alert_* devices during test flow, both deactivated at end. Alert-rules PUT/DELETE cycle restored defaults. dev-pilot-01 heartbeat_lost alert is now acknowledged by owner@tokopilot.id (idempotency test); alert still open by design (no heartbeat posted).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Final preview state: alert-rules at defaults (is_default=true). 2 deactivated TEST_alert_* devices linger in device list (no delete API); their alerts are auto-resolved. Only remaining open alert = heartbeat_lost for dev-pilot-01, acknowledged. Any new TEST_alert_* devices you create MUST be deactivated at the end. Do NOT post heartbeats for dev-pilot-01.",
+  "rca of the issue": "PUT alert-rules missing-field returning 200: AlertRulesIn.no_events_min has `Field(default=None, ...)` which makes the field optional. Contract wants strict 422 for any missing field. Repro: `curl -X PUT /api/v1/stores/{id}/alert-rules -d '{\"heartbeat_lost_min\":5,\"camera_down_min\":3,\"buffer_pending_threshold\":200}'` -> HTTP 200. Fix: `no_events_min: int | None = Field(..., ge=5, le=1440)` (Ellipsis makes it required while still nullable)."
+}
