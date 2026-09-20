@@ -1,0 +1,36 @@
+{
+  "summary": "Live E2E verification of Phase 1 self-service management (ADR-024) against preview URL. Backend: 29/29 pytest cases pass in /app/backend/tests/qa_live_manage.py — admin login flags (is_platform_admin=true), admin tenants role='platform_admin'; owner store create (201) + invalid tz 422 + duplicate name 409 + PATCH rename 200; device create returns api_key_show_once starting 'dk_' + heartbeat 200 with new key + rotate-key invalidates old (401) + is_active=false blocks heartbeat (403); cameras: initial empty list, external_id with space 422, cross-store device 422, create+patch clear_device+delete 204; members: owner creates staff (201), staff can GET /stores but 403 on POST stores / GET members / POST tenants; owner PATCH member role owner<->staff roundtrip; owner cannot change own role (409); owner reset-password (204) and staff logs in with new pw; owner POST tenants 403, owner GET /users 403; admin GET /users lists all users w/ memberships; admin PATCH is_active=false invalidates staff JWT (401), reactivate 200; change-password wrong current 403 + new_pw<10 chars 422 + success on qa staff user. Frontend Playwright (1920x1080 + 390x844): owner /pengaturan shows exactly {Toko & perangkat, Pengguna, Akun} (no Tenant); Toko Pilot card + dev-pilot-01 + cam-door-front visible; owner creates store 'TEST_UI_Store_*' via manage-store-add, device 'edge-qa-*' via manage-device-add reveals device-api-key starting 'dk_' + key-reveal-done; creates camera 'cam-qa-*' via camera-external-id-input+camera-device-select. Members tab: member-add creates qa-ui-staff-*@example.com role=staff, member-role-change owner<->staff roundtrip. Staff login: only {stores, account} tabs, manage-store-add absent, manage-store-edit absent, dashboard KPIs render. Admin login: Tenant tab present, tenant-add creates 'TEST_Tenant_UI_*', manage-tenant-select shows Pilot Tenant + new tenant after switching to stores tab, users-list shows 6 users. Account tab shows account-email + account-roles. nav-manage-link visible in rail. Horizontal overflow = 0 at both 1920 and 390. All page.on('dialog') accepted for confirm prompts (none surfaced in this flow).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CameraDialog (external_id input)", "issues": ["HTML5 pattern attribute '[A-Za-z0-9_.-]+' is invalid under the v-flag (Chrome 124+/Safari 17.4+): console SyntaxError 'Invalid character in character class'. Client-side pattern validation is skipped; backend 422 still guards but the browser-level UX check is dead. Fix: escape the dot/dash — pattern=\"[A-Za-z0-9_.\\-]+\" or [A-Za-z0-9_\\.-]+."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/qa_live_manage.py",
+    "/app/test_reports/pytest/qa_live_manage.xml"
+  ],
+  "action_items": [
+    "Escape the '.' or '-' in CameraDialog.tsx pattern attribute for external_id-input so it is a valid RegExp under the v-flag (currently logs a SyntaxError in modern browsers)."
+  ],
+  "critical_code_review_comments": [
+    "Role-based access is enforced consistently in manage.py (`require_platform_admin` for /tenants POST + /users; `require_user` + `can_manage(tenant_id)` for owner-only writes; `_visible_*` returns 404 for cross-tenant reads — correct 404-vs-403 split per contract).",
+    "Device key rotation correctly overwrites key_id/secret_hash/api_key_prefix and old token immediately 401s (verified). `is_active=false` returns 403 (not 401), matching contract for 'known device, currently disabled'.",
+    "Camera device_id cross-store guard is enforced with 422 + message 'device_id must belong to the same store' — good defensive check on both POST and PATCH.",
+    "Own-role change/removal correctly returns 409 (not 403) — sensible; prevents accidental self-lockout.",
+    "Admin PATCH /users/{id} is_active=false invalidates JWT via user.is_active check on next request (401). No token revocation table needed; deactivate flag alone works.",
+    "MembersPanel window.confirm for delete/remove is accepted via page.on('dialog') — not a bug, just a Playwright gotcha for future testers.",
+    "Test file must be run SERIALLY (module-level _STATE threads UUIDs). Header comment updated to specify `-o addopts=\"\"` to override the project's default -n auto/--dist loadscope.",
+    "Prior iteration_5 note about Toolbar chevron touch target (36px vs 44px WCAG target) still applies; unrelated to Phase 1."
+  ],
+  "updated_files": ["/app/backend/tests/qa_live_manage.py"],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "100% (30/30 checks after timing fixes)"},
+  "test_credentials": "admin@peoplecounter.app / Admin-Pilot-2026!; owner@tokopilot.id / Owner-Pilot-2026! (both untouched). QA staff created per-run: TEST_qa-staff-<uniq>@example.com / final pw Staff-QA-Changed-2026!",
+  "seed_data_creation": "Backend suite creates: 1 store (TEST_Store_<uniq>_r) + 1 device (TEST_dev_<uniq>, deactivated at cleanup) + staff user TEST_qa-staff-<uniq>@example.com (membership removed at cleanup, user row remains — no user DELETE API). UI suite creates: TEST_UI_Store_<uniq> + edge-qa-<uniq> device + cam-qa-<uniq> camera + qa-ui-staff-<uniq>@example.com + TEST_Tenant_UI_<uniq> tenant (all left in DB — no delete APIs for stores/devices/tenants; harmless clutter prefixed TEST_).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable regression: /app/backend/tests/qa_live_manage.py — run with `pytest backend/tests/qa_live_manage.py -v -o addopts=\"\"` (MUST BE SERIAL due to module-level _STATE). All 29 tests are idempotent per-run because names carry a uuid4 hex suffix. Preview backend has accumulated multiple TEST_Store_*, TEST_UI_Store_*, TEST_Tenant_UI_* rows from repeated iterations — safe to ignore or clean via SQLite directly if noise becomes a problem. The seeded 'Toko Pilot' + 'dev-pilot-01' + 'cam-door-front' are untouched and still returned by the API. Only one minor console-level issue found (CameraDialog pattern regex — see action_items). No route/RBAC/data-integrity bugs found across 51+ scenarios.",
+  "rca of the issue": "CameraDialog external_id pattern: pattern=\"[A-Za-z0-9_.-]+\" is compiled by the browser under the RegExp v-flag (per HTML spec since 2024). Under v-flag, '.-' inside a character class is a reserved range operator and must be escaped or ordered differently. Chrome/Safari log SyntaxError and skip the client-side check. Fix in /app/frontend/src/components/manage/CameraDialog.tsx line 32: change pattern to \"[A-Za-z0-9_.\\\\-]+\" (escape the dash) or place the dash first/last: \"[-A-Za-z0-9_.]+\". Backend accepts/rejects correctly regardless (422 for space)."
+}

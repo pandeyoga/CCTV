@@ -1,0 +1,22 @@
+{
+  "summary": "Live E2E on preview URL: 20/20 backend pytest cases pass (unauth 401 + WWW-Authenticate Bearer on /stores /summary /hourly /devices; /api/health 200 public; login success/wrong-pass/unknown-email/extra-field 200/401/401/422; scoping shows exactly one 'Toko Pilot' Asia/Jakarta, random-UUID store->404; cross-scope 401s: device key on /stores and user JWT on /events/batch; tampered JWT->401; heartbeat 200 with received_at, source_status and last_heartbeat_at updated while summary enter/exit unchanged; heartbeat without key->401, extra field device_id->422; events batch accepts 2 events (one with tracking_session_id=2, one without = backward compatible) and returns duplicates on re-post). Frontend Playwright: root->/login, wrong password renders login-error 'Email atau kata sandi salah', correct creds land on dashboard-page with Toko Pilot, device-list-card shows dev-pilot-01 with device-status-badge data-status='connected' after ok heartbeat and flips to 'camera_down' with label 'Terhubung, kamera terputus' after source_down heartbeat via manual-refresh-button; device-last-heartbeat & device-last-seen rows present; session persists across reload; logout-button (desktop) returns to /login and revisiting / redirects to /login; tampered pc.session.v1 token falls back to /login (API 401 clears session); logout-button-mobile present at 390x844; zero horizontal overflow at 1920x1080 and 390x844 on both /login and dashboard. DB cleaned: count_events=0, devices.last_seen_at=NULL (dashboard_users/tenant_memberships/devices rows preserved).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_live_e2e.py", "/app/test_reports/pytest/live_e2e.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Auth split (require_user vs require_device) is correctly enforced: device keys rejected on user routes and JWTs rejected on device routes with 401 both ways. WWW-Authenticate: Bearer challenge present on all protected user endpoints.",
+    "Event contract uses extra='forbid' with tracking_session_id as Optional (v1 backward compatible) — confirmed both event shapes (with and without) accepted in the same batch.",
+    "Heartbeat is correctly isolated from visitor counting: enter_count/exit_count unchanged after ok/source_down heartbeats, and last_event_at not overwritten.",
+    "Frontend clears pc.session.v1 on 401 as designed (tampered token test navigated back to /login within seconds).",
+    "Prior iteration_5 note about date-prev/next chevron touch target (36px vs 44px) still applies in Toolbar.tsx; not re-tested in this pass but worth fixing."
+  ],
+  "updated_files": ["/app/backend/tests/test_live_e2e.py"],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% (17/17 checks)"},
+  "test_credentials": "owner@example.com / PilotOwner#2026; device key from /app/memory/seed_output.json. Used 2 wrong-password attempts total (pytest + Playwright) — well under the 5/(IP,email)/15min throttle.",
+  "seed_data_creation": "Posted 2 synthetic count events (cam-door-front/door-1, one with tracking_session_id=2, one without) and two heartbeats (ok, then source_down) via device API. Cleaned up: DELETE FROM count_events; UPDATE devices SET last_seen_at=NULL. Final SELECT COUNT(*) FROM count_events = 0.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Live preview backend at REACT_APP_BACKEND_URL. /app/backend/tests/test_live_e2e.py is reusable regression suite that hits the live URL and cleans up its own SQLite rows. Device is currently left in hb_source_status='source_down' (matches the 'existing state' in the review request) with last_seen_at=NULL. Login throttle: keep failed logins for owner@example.com <5 per 15 minutes.",
+  "rca of the issue": "N/A — no issues found."
+}

@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only redesign validated via Playwright route interception (no DB writes). All state machine transitions (skeleton, error+retry, stale banner, refreshing indicator), toolbar controls, KPI empty state on real DB (0/0/0/—), device honest status (never), no 'dk_' leakage, header/timezone badge/store selector, responsive nav-rail (desktop) vs mobile-topbar (mobile 390), zero horizontal overflow at 1440/768/390, and Live-data mock (2/1/+1, WIB hour bar, device 'Event baru < 5 mnt', 'Terakhir mengirim event' prefix) all pass. tsc noEmit and time.test.ts (5/5) pass. Zero console errors on real backend load. DB count_events row count verified = 0 after tests.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Toolbar (date-prev-button, date-next-button)", "issue": "Touch target height is 36px (h-9) — spec requires >=44px for toolbar buttons. date-today-button and manual-refresh-button correctly measure 44px. Chevron buttons should be h-11 or use larger min-height on mobile.", "selector": "[data-testid='date-prev-button'], [data-testid='date-next-button']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Increase height of date-prev-button and date-next-button to at least 44px (currently 36px via h-9 min-w-9) to meet the >=44px touch target accessibility requirement stated in the review spec. Consider h-11 min-w-11 or wrapping in a larger tap area."
+  ],
+  "critical_code_review_comments": [
+    "Toolbar.tsx: date-prev/next chevron buttons use h-9 (36px) — violates >=44px touch target requirement.",
+    "Dashboard.tsx state machine is clean and correctly derives dayError/hasDayData/dayLoaded/hasEvents from useStoreDay result — no changes needed.",
+    "api/types.ts intentionally keeps api_key_prefix from backend but UI never renders it — consistent with 'no dk_ on page' requirement."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "96%"},
+  "test_credentials": "No login. Device API key not needed (used route interception).",
+  "seed_data_creation": "None. Used Playwright page.route(**/api/v1/**) to fulfill synthetic JSON per api/types.ts schema. count_events row count in backend/data/people_counter.sqlite3 verified = 0 both before and after tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Route interception approach worked well. When mocking, order URL matching so specific paths (/summary, /hourly, /devices) are checked before generic /api/v1/stores. Return complete schema shapes (StoreOut needs tenant_id; SummaryOut needs occupancy_estimate; DeviceOut needs api_key_prefix). All data-testids in review request are present and correctly wired.",
+  "rca of the issue": "Touch target: Toolbar.tsx line 33/44 uses className 'ctl ctl-ghost h-9 min-w-9' for the chevron buttons — h-9 = 36px falls short of the 44px WCAG/iOS touch target minimum. Fix: change to 'h-11 min-w-11' (or add sm:h-9 for desktop tightening while keeping mobile at 44px)."
+}

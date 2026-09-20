@@ -1,0 +1,25 @@
+{
+  "summary": "Stage 2 backend fully verified. Existing suite: 19 passed. New live QA suite (qa_live_api.py) against public REACT_APP_BACKEND_URL: 12/12 passed. Covered: /api/health, /api/v1/stores (pilot Toko Pilot + Asia/Jakarta), device Bearer auth (missing / unknown key_id / wrong secret all -> 401 with WWW-Authenticate: Bearer), ingest idempotency (accepted then duplicates, same event_id), summary+hourly deltas in store tz (WIB bucket 9 == 09:15 for 02:15 UTC, bucket 0 hour_start '2026-06-01T00:00:00+07:00'), validation (extra tenant_id field -> 422, naive ts -> 422, empty events -> 422, unknown camera -> 200 with rejected 'unknown camera' and nothing counted), devices endpoint (last_seen_at set, api_key_prefix == first 12 chars of key, full key + secret NOT leaked), unknown store 404. Cleanup executed automatically (module fixture) and post-verified: 0 synthetic rows remain, summary enter=0 last_event_at=null.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/qa_live_api.py",
+    "/app/test_reports/pytest/qa_live_api.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "All contract requirements from /app/docs/CONTRACTS.md verified end-to-end via public URL; no deviations observed.",
+    "Device Bearer auth returns proper 401 + WWW-Authenticate for all three failure modes (missing / unknown key_id / wrong secret) — correct RFC 6750 behavior.",
+    "Idempotency correct: replay of identical event_id returns duplicates:[id] with no counter increment.",
+    "Timezone math verified: 02:15Z → WIB bucket 09 (09:15+07:00), bucket 0 hour_start '2026-06-01T00:00:00+07:00', 24 zero-filled buckets.",
+    "No API key leakage in /devices response (checked full key and secret substring); api_key_prefix matches key[:12] exactly."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (19 unit + 12 live = 31/31)", "frontend": "N/A (out of scope)"},
+  "test_credentials": "Device key + ids read from /app/memory/seed_output.json as instructed; no user login (pilot).",
+  "seed_data_creation": "Test inserted one synthetic enter event (event_id per-run uuid4) which was cleaned up by the module fixture; DB left with 0 synthetic rows.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Live QA lives at /app/backend/tests/qa_live_api.py and auto-cleans synthetic rows before + after. Safe to re-run any time: `cd /app/backend && python -m pytest tests/qa_live_api.py -v`. Full existing suite: `python -m pytest tests -q` should stay at 19 passed. Frontend is still the untouched template.",
+  "rca of the issue": "N/A — no defects found."
+}

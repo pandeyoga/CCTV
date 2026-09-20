@@ -1,0 +1,89 @@
+{
+  "request": {
+    "additionalProperties": false,
+    "description": "Device liveness, independent of visitor events. Identity comes from device auth; the server\nstamps `received_at` itself (edge clocks are informational only).",
+    "properties": {
+      "agent_version": {
+        "maxLength": 32,
+        "minLength": 1,
+        "title": "Agent Version",
+        "type": "string"
+      },
+      "frames_processed": {
+        "minimum": 0,
+        "title": "Frames Processed",
+        "type": "integer"
+      },
+      "last_frame_age_s": {
+        "anyOf": [
+          {
+            "minimum": 0,
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Seconds since the last processed frame; null before the first frame",
+        "title": "Last Frame Age S"
+      },
+      "pending_events": {
+        "description": "Events buffered locally, not yet acknowledged",
+        "minimum": 0,
+        "title": "Pending Events",
+        "type": "integer"
+      },
+      "schema_version": {
+        "const": 1,
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer"
+      },
+      "sent_at": {
+        "description": "Edge wall clock (UTC, tz-aware); informational",
+        "format": "date-time",
+        "title": "Sent At",
+        "type": "string"
+      },
+      "source_status": {
+        "enum": [
+          "ok",
+          "source_down"
+        ],
+        "title": "Source Status",
+        "type": "string"
+      },
+      "tracking_session_id": {
+        "minimum": 0,
+        "title": "Tracking Session Id",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "sent_at",
+      "source_status",
+      "pending_events",
+      "frames_processed",
+      "tracking_session_id",
+      "agent_version"
+    ],
+    "title": "HeartbeatV1",
+    "type": "object"
+  },
+  "response": {
+    "additionalProperties": false,
+    "properties": {
+      "received_at": {
+        "format": "date-time",
+        "title": "Received At",
+        "type": "string"
+      }
+    },
+    "required": [
+      "received_at"
+    ],
+    "title": "HeartbeatAckV1",
+    "type": "object"
+  }
+}

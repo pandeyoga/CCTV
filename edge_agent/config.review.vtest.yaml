@@ -1,0 +1,35 @@
+# Review run on OpenCV's public sample clip samples/vtest.avi (768x576, 10 fps, 795 frames).
+# Download: curl -L -o samples/vtest.avi https://raw.githubusercontent.com/opencv/opencv/4.x/samples/data/vtest.avi
+device_id: dev-review
+camera_id: cam-vtest
+source:
+  kind: file
+  path: ./samples/vtest.avi
+  start_ts_utc: "2026-06-01T02:00:00Z"
+  frame_stride: 2                # 5 processed fps; this container's CPU does ~1 YOLOX-S inference/s
+line:
+  line_id: plaza-x050
+  ax: 0.50
+  ay: 0.20
+  bx: 0.50
+  by: 0.80
+  enter_side: left               # walking from screen-left to screen-right == "enter"
+counter:
+  hysteresis: 0.02
+  min_confirm_frames: 2
+  track_ttl_frames: 20
+  anchor: bottom_center
+detector:
+  kind: yolox_onnx
+  model_path: ./models/yolox_s.onnx
+  conf_threshold: 0.4
+  nms_threshold: 0.45
+tracker:
+  kind: iou
+  min_iou: 0.25
+  max_age: 8
+  min_hits: 2
+store:
+  path: ./review/vtest_events.sqlite3
+  capacity: 10000
+health_file: ./review/vtest_health.json

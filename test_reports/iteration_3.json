@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only QA for the People Counter pilot dashboard. All 8 requested scenarios passed on preview URL. Unit tests (5/5) pass. Initial empty state, live data ingestion via POST /api/v1/events/batch, KPI/chart/device updates, manual refresh, date navigation (prev/next/today/date-picker), timezone (Asia/Jakarta) formatting, error state on backend outage, and retry recovery all verified. Mobile (390x844) and desktop (1920x1080) have no horizontal overflow. Cleanup executed: 3 synthetic events deleted; dashboard returned to empty state.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/frontend/src/lib/time.test.ts"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Header.tsx: date-picker input uses type=date (native picker) which is a native browser control, not a shadcn Calendar; acceptable per contract but note the styling gap on Firefox.",
+    "Dashboard.tsx: error banner is shown together with (cached) content on transient failures; this is correct progressive-enhancement behavior. On cold start with no cache, only the error state is shown (verified).",
+    "api/client.ts: single generic error copy ('API mengembalikan HTTP N') — good enough; consider mapping 5xx vs network to differentiated messages later.",
+    "useDashboardData.ts: three parallel queries per store/day; consider a single batched endpoint later to reduce polling load at scale."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped by request)", "frontend": "100%"},
+  "test_credentials": "Device Bearer key + store_id from /app/memory/seed_output.json. No user login.",
+  "seed_data_creation": "Temporarily posted 2 enter + 1 exit synthetic events via POST /api/v1/events/batch, then deleted them via sqlite (WHERE source_kind='synthetic'). Final dashboard verified empty. Backend was stopped/started once during error-state test and is running.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Verified checkpoints (all PASS): initial empty state at 1920x1080 shows KPIs 0/0/0/— with empty-state-container and hourly-empty-note visible; device dev-pilot-01 badge status flips 'stale'->'active' after ingest and back over time; kpi-last-event-at rendered in id-ID as 'HH.MM.SS' in Asia/Jakarta (observed 22.12.48 from a UTC 15:12:xx event); hourly tooltip 'HH:00 – HH:59 masuk: 2 keluar: 1' at bucket 22; date-prev-button navigates to previous WIB day, date-today-button disabled on today then enabled elsewhere, date-next-button disabled on today, date-picker (native input type=date, max=today) accepts YYYY-MM-DD; last-updated-time follows 'diperbarui N dtk lalu · auto 30s'; error-state-container shows on backend down with retry that recovers dashboard; no horizontal overflow at 390x844.",
+  "rca of the issue": "No issues to RCA."
+}

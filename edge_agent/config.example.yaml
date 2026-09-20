@@ -1,0 +1,50 @@
+# Non-secret config. Secrets come from env: EDGE_API_KEY, EDGE_RTSP_URL (see .env.example).
+device_id: dev-pilot-01          # local label; server derives real identity from the API key
+camera_id: cam-door-front
+
+source:
+  kind: file                     # file | rtsp | synthetic
+  path: ./samples/door.mp4
+  start_ts_utc: null             # for recorded video: when frame 0 happened (UTC). null = now
+  fps_override: null
+  frame_stride: 1                # RTSP on weak CPU: 2-3 (process every Nth frame); keep tracker max_age/ttl in processed frames
+
+line:
+  line_id: door-1
+  ax: 0.20                       # normalized 0..1, origin top-left, y down
+  ay: 0.55
+  bx: 0.80
+  by: 0.55
+  enter_side: left               # side (relative to a->b) a person ends on when ENTERING the store
+
+counter:
+  hysteresis: 0.02               # deadband half-width in normalized units
+  min_confirm_frames: 2
+  track_ttl_frames: 30
+  anchor: bottom_center          # bottom_center (feet) | center
+
+detector:
+  kind: yolox_onnx               # yolox_onnx | scripted (tests only)
+  model_path: ./models/yolox_s.onnx
+  input_size: [640, 640]
+  conf_threshold: 0.4
+  nms_threshold: 0.45
+
+tracker:
+  kind: iou
+  min_iou: 0.3
+  max_age: 15
+  min_hits: 2
+
+store:
+  path: ./edge_events.sqlite3
+  capacity: 50000
+
+backend:
+  url: https://api.example.com
+  batch_size: 100
+  timeout_s: 10
+  base_backoff_s: 1
+  max_backoff_s: 60
+
+health_file: ./edge_health.json

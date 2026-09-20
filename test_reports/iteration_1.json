@@ -1,0 +1,26 @@
+{
+  "summary": "Stage 1 edge_agent (pure Python library) verified end-to-end. Ran the built-in suite (51/51 passed) and authored an independent QA suite at /app/edge_agent/tests/qa_verifications.py (21/21 passed) covering every verification point in the review request: directed-line ENTER/EXIT/oscillation/re-cross semantics; EventStore persistence, duplicate rejection, BufferFullError, mark_sent capacity reclaim; EventSender retry-then-ack with stable event_id, 401 -> AUTH_FAILED with row still pending, 'duplicates' treated as sent, API key never in logs (via httpx.MockTransport); CounterPipeline end-to-end with SyntheticSource+ScriptedDetector+IouTracker producing [ENTER, EXIT] with event_ts = start_ts + frame_index/fps, plus buffer_full 'loud' behavior (status=buffer_full, events_lost_buffer_full=2, 'EVENT LOST' ERROR log); CLI smoke `run --no-send` (exit 0, health.json status=ok frames_processed=20), `status`, and `schema`; contract SSOT guard (committed JSON matches generated), naive datetime rejected, extra tenant_id rejected; and RtspVideoSource logs redact 'user:secretpw@127.0.0.1' to '***:***@127.0.0.1'. No functional issues found; frontend/backend server templates left untouched as instructed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/edge_agent/tests/qa_verifications.py",
+    "/app/test_reports/pytest/qa_verifications.xml",
+    "/app/test_reports/pytest/full_suite.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EventStore.append raises sqlite3.IntegrityError on duplicate event_id; consider translating to a dedicated DuplicateEventError for callers, but current behavior meets the invariant.",
+    "EventSender.send_once already handles ConnectError via httpx.HTTPError base class; explicit unit test with ConnectError confirmed correct behavior.",
+    "HealthState.buffer_capacity is never set from EventStore.capacity in the pipeline path, so overall() only escalates to BUFFER_FULL when events_lost_buffer_full > 0. That is sufficient for the loud-fail contract but the buffer_capacity/buffer_pending fields on the health snapshot stay at 0, which may look misleading in health.json. Non-blocking; consider wiring health.buffer_capacity = store.capacity at pipeline init.",
+    "Redaction is applied only through _RedactingFormatter installed by CLI _setup_logging; unit tests that don't invoke the CLI rely on the module never logging the raw API key directly. Verified — sender.py only logs err strings, never the key.",
+    "cmd_run returns exit code 2 for status not in ('ok','degraded'); CLI smoke test config yields 'ok', so this path is uncovered by tests but code is straightforward."
+  ],
+  "updated_files": ["/app/edge_agent/tests/qa_verifications.py"],
+  "success_rate": {"backend": "100% (51/51 built-in + 21/21 QA)", "frontend": "n/a (out of scope)"},
+  "test_credentials": "n/a",
+  "seed_data_creation": "None; all tests use tmp_path SQLite DBs and httpx.MockTransport",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run `cd /app/edge_agent && python -m pytest tests/qa_verifications.py -v` for the independent QA suite; the default `pytest -q` still runs only the built-in 51 tests because qa_verifications.py does not match the test_*.py glob (intentional per instruction to place QA under tests/qa_*). To run everything, use `pytest tests/`. Stage 2 (real backend server for /api/v1/events/batch) is not yet built.",
+  "rca of the issue": "n/a — no issues found"
+}

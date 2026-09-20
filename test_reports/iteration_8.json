@@ -1,0 +1,25 @@
+{
+  "summary": "Phase 2 reports (ADR-025) end-to-end verified against preview URL. Backend: 8/8 pytest cases in /app/backend/tests/qa_live_reports.py pass — GET /api/v1/stores/{id}/report for Toko Pilot (from=today-6d..today Asia/Jakarta) returns 200 with current.days=7, previous.days=7, previous.to_date=from-1d, daily has 7 zero-filled buckets in chronological order, hourly_profile has hours 0..23, sum(daily.enter)==current.enter==sum(hourly_profile.enter). Validation: to<from -> 422, range >92d -> 422, missing to -> 422, unauthenticated -> 401, fake UUID store -> 404. Overview: owner sees Toko Pilot (devices_total=1, enter/exit match /summary, yesterday_enter/avg_enter_7d/last_event_at/devices_problem present); platform admin sees rows >= owner (5 vs 5 owner incl. TEST_* leftovers + Toko Pilot). Frontend Playwright (1920x1080 + 390x844): owner login -> nav-reports-link visible -> /laporan renders reports-page with overview-table (5 overview-enter cells incl. Toko Pilot enter=14), report-toolbar visible, report-preset-7 aria-pressed=true by default, report-range-label='Toko Pilot · Senin, 14 September 2026 – Minggu, 20 September 2026 (7 hari)', report-kpi-enter=88 (>0 seed events), report-delta-enter=+225.9%, report-kpi-avg=12.6, report-kpi-peak-hour=11:00-11:59, daily-chart-container present, 6 busiest-hour-row items. report-preset-30 -> label shows '(30 hari)'. report-preset-custom -> report-from-input+report-to-input appear; from later than to -> report-range-error 'Tanggal akhir harus setelah tanggal mulai'; swap back -> label returns. report-export-csv downloads laporan_Toko_Pilot_2026-09-14_2026-09-20.csv with header 'toko,zona_waktu,tanggal,masuk,keluar,selisih' (quoted, BOM prefixed) and 7 data rows. report-store-select has 5 options. Clicking overview-store-pick sets ?store=<uuid> in URL. Dashboard / and /pengaturan still load. Horizontal PAGE overflow = 0 at 1920 AND at 390 on /laporan, /, /pengaturan (documentElement.scrollWidth == clientWidth).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/qa_live_reports.py",
+    "/app/test_reports/pytest/qa_live_reports.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/app/routers/reports.py: correct tz-aware bucketing via _local_day_range_utc; previous window is from-1..from-days computed symmetrically; hourly_profile uses store-local .hour so DST/offset edges are handled — clean.",
+    "range validation enforces to>=from and days<=92 (MAX_RANGE_DAYS) with 422; store scoping via _store() returns 404 for cross-tenant (matches contract).",
+    "overview endpoint: returns [] for users with no tenants (correct), streams events only in a 7-day rolling window, computes avg_enter_7d from days 1..7 (excludes today) rounded to 1 decimal — matches summary semantics. devices_problem correctly excludes is_active=false devices and flags stale (>180s) OR source_status='source_down'.",
+    "frontend Reports.tsx: rangeError computed client-side prevents useRangeReport from firing on invalid ranges (undefined store_id short-circuits the hook) — good. CSV writer uses \\r\\n + BOM so id-ID Excel opens it correctly. Filename sanitisation via replace(/[^\\w-]+/g,'_') is safe.",
+    "OverviewTable renders 5 rows including 4 TEST_* stores from previous QA iterations — not a bug, just accumulated seed noise (documented in iteration_7). Consider adding a manual cleanup script or an admin delete-store endpoint if the noise becomes distracting."
+  ],
+  "updated_files": ["/app/backend/tests/qa_live_reports.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (all Phase-2 checkpoints)"},
+  "test_credentials": "owner@tokopilot.id / Owner-Pilot-2026!; admin@peoplecounter.app / Admin-Pilot-2026! (both untouched)",
+  "seed_data_creation": "None — used the ~170 pre-seeded synthetic events for Toko Pilot; no events posted/deleted this run.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Reusable regression: /app/backend/tests/qa_live_reports.py — run with `pytest backend/tests/qa_live_reports.py -v -o addopts=\"\"`. Preview DB has accumulated 4 TEST_*/TEST_UI_* stores from prior iterations (harmless; visible in OverviewTable). Playwright note: after login the nav-rail mounts asynchronously — wait for [data-testid=\"nav-rail\"] before querying nav links. When testing custom-range validation, after choosing preset-custom the inputs default to the current preset's from/to; set from to (to_val) and to to (to_val - 3d) to trigger report-range-error. Downloads via page.expect_download() work; CSV uses \\r\\n line endings + UTF-8 BOM.",
+  "rca of the issue": "No issues found."
+}

@@ -1,0 +1,20 @@
+[Unit]
+Description=People counter edge agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=edge
+WorkingDirectory=/opt/edge_agent
+EnvironmentFile=/opt/edge_agent/.env
+Environment=OPENCV_FFMPEG_CAPTURE_OPTIONS=rtsp_transport;tcp|stimeout;5000000
+ExecStart=/opt/edge_agent/.venv/bin/python -m edge_agent.cli run --config /opt/edge_agent/config.yaml
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/edge_agent
+
+[Install]
+WantedBy=multi-user.target

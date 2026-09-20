@@ -1,0 +1,183 @@
+{
+  "project_title": "Redesign UI/UX Dashboard People Counter (CCTV Repo)",
+  "app_type": "dashboard",
+  "language": "id",
+  "design_philosophy": {
+    "archetype": "SWISS & HIGH-CONTRAST + SUBTLE GLASSMORPHISM",
+    "core_principles": [
+      "Light, clean, modern, and high contrast for effortless readability",
+      "Subtle white glassmorphism (78-90% opacity with soft border & soft backdrop blur)",
+      "Honest data state: explicit stale data labels, error handling with retry, and zero vs pending distinctions",
+      "No global dark theme, no neon gradients, no heavy shadows, no nested cards, no upper-cased labels"
+    ]
+  },
+  "colors": {
+    "background": "#F3F4F6",
+    "surface_primary": "#FFFFFF",
+    "surface_secondary": "#F8FAFC",
+    "surface_glass": "rgba(255, 255, 255, 0.85)",
+    "text_primary": "#18181B",
+    "text_secondary": "#52525B",
+    "border_subtle": "#E4E4E7",
+    "sidebar_rail_bg": "#18181B",
+    "sidebar_rail_hover": "#27272A",
+    "primary_button": "#202124",
+    "primary_button_text": "#FFFFFF",
+    "accent_emerald": "#047857",
+    "accent_emerald_light": "#D1FAE5",
+    "exit_series_slate": "#64748B",
+    "exit_series_slate_light": "#F1F5F9",
+    "warning_amber": "#B45309",
+    "warning_amber_bg": "#FEF3C7",
+    "error_red": "#B91C1C",
+    "error_red_bg": "#FEE2E2",
+    "focus_ring": "#047857"
+  },
+  "typography": {
+    "heading_font": "Outfit, ui-sans-serif, sans-serif",
+    "body_font": "Manrope, Inter, ui-sans-serif, system-ui, sans-serif",
+    "mono_font": "JetBrains Mono, ui-monospace, monospace",
+    "kpi_numbers": "tabular-nums font-semibold tracking-tight",
+    "scale": {
+      "h1": "text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900",
+      "h2": "text-lg sm:text-xl font-semibold text-zinc-900",
+      "h3": "text-base font-semibold text-zinc-900",
+      "body": "text-sm text-zinc-600 leading-relaxed",
+      "small_label": "text-xs font-medium text-zinc-500"
+    }
+  },
+  "layout_structure": {
+    "app_shell": {
+      "desktop": "Flex layout with ~72px charcoal vertical rail on left (#18181B), main content area on right with #F3F4F6 background and 24-32px padding",
+      "mobile": "Top header with brand mark + drawer button for compact navigation",
+      "main_container": "max-w-7xl mx-auto space-y-6"
+    },
+    "border_radii": {
+      "cards": "rounded-2xl (20px to 24px)",
+      "controls": "rounded-xl (10px to 14px)",
+      "buttons": "rounded-xl (10px to 14px)",
+      "pills": "rounded-full"
+    },
+    "shadows": {
+      "card_shadow": "shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] border border-zinc-200/80",
+      "control_shadow": "shadow-sm border border-zinc-200"
+    }
+  },
+  "components": {
+    "sidebar_rail": {
+      "width": "w-18 (72px)",
+      "background": "bg-zinc-900 text-white flex flex-col items-center py-6 h-screen sticky top-0",
+      "items": [
+        { "id": "dashboard", "label": "Ringkasan", "icon": "LayoutDashboard", "active": true, "href": "#" },
+        { "id": "analytics", "label": "Laporan", "icon": "BarChart3", "active": false, "disabled": true, "href": "#" },
+        { "id": "settings", "label": "Pengaturan", "icon": "Settings", "active": false, "disabled": true, "href": "#" }
+      ]
+    },
+    "header_bar": {
+      "title": "Ringkasan pengunjung",
+      "subtitle": "Pantau lalu lintas orang masuk dan keluar toko secara terkini",
+      "controls": [
+        "Store Selector (Dropdown with search / clear selection state)",
+        "Date Navigation (Prev button, Date picker, Next button, 'Hari ini' quick button)",
+        "Perbarui (Refresh button with manual spinner state)",
+        "Metadata panel: Timezone toko (e.g. WIB / Asia/Jakarta) + Waktu pembaruan ringkas"
+      ]
+    },
+    "kpi_cards": [
+      {
+        "id": "kpi-in",
+        "title": "Orang masuk",
+        "key": "total_in",
+        "color": "emerald",
+        "badge": "Terpilih",
+        "description": "Jumlah total pengunjung masuk pada periode terpilih"
+      },
+      {
+        "id": "kpi-out",
+        "title": "Orang keluar",
+        "key": "total_out",
+        "color": "slate",
+        "badge": "Terpilih",
+        "description": "Jumlah total pengunjung keluar pada periode terpilih"
+      },
+      {
+        "id": "kpi-net",
+        "title": "Selisih masuk–keluar",
+        "key": "net_flow",
+        "color": "zinc",
+        "badge": "Perhitungan Tanggal",
+        "description": "Total masuk dikurangi total keluar pada tanggal ini"
+      },
+      {
+        "id": "kpi-last-event",
+        "title": "Event terakhir",
+        "key": "last_event_time",
+        "color": "blue",
+        "badge": "Perangkat",
+        "description": "Waktu terdeteksi aktivitas kamera atau perangkat CCTV"
+      }
+    ],
+    "hourly_chart": {
+      "title": "Kunjungan per jam",
+      "library": "Recharts BarChart",
+      "type": "Grouped Bar Chart (24 buckets: 00:00 s/d 23:00)",
+      "bars": [
+        { "dataKey": "in", "name": "Orang masuk", "fill": "#047857", "radius": [4, 4, 0, 0] },
+        { "dataKey": "out", "name": "Orang keluar", "fill": "#64748B", "radius": [4, 4, 0, 0] }
+      ],
+      "features": [
+        "Custom Tooltip with precise values and formatted hour range",
+        "Light grid lines strokeDasharray='3 3' stroke='#E4E4E7'",
+        "Explicit distinction between zero count vs missing/unregistered data",
+        "Responsive X-Axis tick label spacing on smaller viewports"
+      ]
+    },
+    "device_status_list": {
+      "title": "Aktivitas Perangkat & Kamera",
+      "item_fields": ["Nama perangkat/lokasi", "Terakhir mengirim event / status", "Badge status visual (teks + ikon)"],
+      "statuses": {
+        "active": { "label": "Aktif", "bg": "bg-emerald-50", "text": "text-emerald-700", "border": "border-emerald-200" },
+        "idle": { "label": "Tidak terlihat >5 mnt", "bg": "bg-amber-50", "text": "text-amber-700", "border": "border-amber-200" },
+        "no_events": { "label": "Belum ada event baru", "bg": "bg-zinc-100", "text": "text-zinc-600", "border": "border-zinc-200" },
+        "offline": { "label": "Nonaktif", "bg": "bg-red-50", "text": "text-red-700", "border": "border-red-200" }
+      },
+      "rules": "Hapus prefiks API key atau kredensial teknis, jangan gunakan sebutan 'Live/Online'."
+    }
+  },
+  "states_and_feedback": {
+    "skeleton_loading": "Matching component geometry (card skeletons, chart bar skeleton, table row skeletons) with subtle pulse animation",
+    "refreshing": "Maintain existing rendered data while showing top inline banner 'Memperbarui data...' + spin indicator",
+    "stale_data_warning": "Yellow subtle banner if refresh fails: 'Menampilkan data terakhir (gagal memperbarui)' with Retry CTA button",
+    "empty_state": "Clean illustration icon + title 'Belum ada data kunjungan' + helpful suggestion text",
+    "error_state": "Red soft container + 'Gagal memuat data' + 'Coba lagi' button"
+  },
+  "accessibility_and_testing": {
+    "wcag_contrast": "Minimum 4.5:1 text-to-background ratio",
+    "keyboard_nav": "Full tab ordering, visible focus ring offset-2 focus:ring-emerald-600 focus:outline-none",
+    "touch_target": "Minimum 44px x 44px for buttons and form toggles",
+    "data_test_ids": {
+      "store_selector": "data-testid='store-selector'",
+      "date_picker": "data-testid='date-picker'",
+      "date_prev_btn": "data-testid='date-prev-button'",
+      "date_next_btn": "data-testid='date-next-button'",
+      "date_today_btn": "data-testid='date-today-button'",
+      "refresh_btn": "data-testid='refresh-button'",
+      "kpi_in_value": "data-testid='kpi-in-value'",
+      "kpi_out_value": "data-testid='kpi-out-value'",
+      "kpi_net_value": "data-testid='kpi-net-value'",
+      "kpi_last_event": "data-testid='kpi-last-event-value'",
+      "chart_hourly": "data-testid='hourly-visits-chart'",
+      "device_list": "data-testid='device-status-list'",
+      "stale_data_banner": "data-testid='stale-data-banner'",
+      "retry_btn": "data-testid='retry-button'"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Ensure all components consume the specified design tokens strictly: #F3F4F6 background, #FFFFFF main surface, charcoal rail #18181B, dark emerald #047857.",
+    "Use lucide-react icons for navigation and actions.",
+    "Use Recharts for the grouped bar chart with responsive design.",
+    "Do NOT apply full dark theme or neon gradients under any circumstances.",
+    "Keep standard Bahasa Indonesia labels throughout the entire interface.",
+    "All interactive elements must include explicit data-testid attributes for testing."
+  ]
+}

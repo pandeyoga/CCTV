@@ -1,0 +1,168 @@
+{
+  "request": {
+    "$defs": {
+      "CountEventV1": {
+        "additionalProperties": false,
+        "properties": {
+          "camera_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "event_id": {
+            "description": "Client-generated UUID4; stable across retries; server dedup key",
+            "format": "uuid",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "event_ts": {
+            "description": "When the crossing happened (UTC, tz-aware). Not the server receive time.",
+            "format": "date-time",
+            "title": "Event Ts",
+            "type": "string"
+          },
+          "event_type": {
+            "$ref": "#/$defs/EventType"
+          },
+          "frame_index": {
+            "minimum": 0,
+            "title": "Frame Index",
+            "type": "integer"
+          },
+          "line_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Line Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "source_kind": {
+            "enum": [
+              "file",
+              "rtsp",
+              "synthetic"
+            ],
+            "title": "Source Kind",
+            "type": "string"
+          },
+          "track_id": {
+            "description": "Local tracker id; NOT a person identity",
+            "minimum": 0,
+            "title": "Track Id",
+            "type": "integer"
+          },
+          "tracking_session_id": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Edge tracking session (increments on stream reconnect); track_id is only unique within it. Optional for v1 backward compatibility.",
+            "title": "Tracking Session Id"
+          }
+        },
+        "required": [
+          "event_id",
+          "event_type",
+          "event_ts",
+          "camera_id",
+          "line_id",
+          "track_id",
+          "frame_index",
+          "source_kind"
+        ],
+        "title": "CountEventV1",
+        "type": "object"
+      },
+      "EventType": {
+        "enum": [
+          "enter",
+          "exit"
+        ],
+        "title": "EventType",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "events": {
+        "items": {
+          "$ref": "#/$defs/CountEventV1"
+        },
+        "maxItems": 500,
+        "minItems": 1,
+        "title": "Events",
+        "type": "array"
+      }
+    },
+    "required": [
+      "events"
+    ],
+    "title": "EventBatchRequestV1",
+    "type": "object"
+  },
+  "response": {
+    "$defs": {
+      "RejectedEventV1": {
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "format": "uuid",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "reason"
+        ],
+        "title": "RejectedEventV1",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "Server acknowledgment. accepted + duplicates are both 'safe to mark sent'.",
+    "properties": {
+      "accepted": {
+        "items": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "title": "Accepted",
+        "type": "array"
+      },
+      "duplicates": {
+        "items": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "title": "Duplicates",
+        "type": "array"
+      },
+      "rejected": {
+        "items": {
+          "$ref": "#/$defs/RejectedEventV1"
+        },
+        "title": "Rejected",
+        "type": "array"
+      }
+    },
+    "title": "EventBatchResponseV1",
+    "type": "object"
+  }
+}
