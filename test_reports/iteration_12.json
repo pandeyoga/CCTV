@@ -1,0 +1,26 @@
+{
+  "summary": "Full backend + frontend QA of Phase-4 first slice (ADR-029 Telegram, ADR-030 lines+snapshots, ADR-031 zones) on preview URL. Backend: 33/33 pytest passing (qa_live_phase4.py). Frontend: Pengaturan Telegram dialog + LineEditorDialog (owner save+restore of door-1) + ZoneEditorDialog (create/delete qa-ui-TEST) + Dashboard ZonePanel + staff read-only + /notifikasi regression all pass. Cleanup done: qa-line-TEST deleted, qa-zone-TEST deleted (BE), qa-ui-TEST zone deleted (UI), telegram_chat_id restored to null, door-1 line restored to A(0.2,0.55)->B(0.8,0.55) side=kiri.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/qa_live_phase4.py",
+    "/app/test_reports/pytest/iteration_12.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Contract vs test-spec mismatch on POST /api/v1/zones/samples: ZoneSampleBatchRequestV1 uses extra='forbid' and does NOT include schema_version, but the review request explicitly asks to POST with 'schema_version: 1'. Doing so returns 422 (extra_forbidden). Contract does version the response schema but rejects the field on the request. Recommend adding `schema_version: Literal[1] = SCHEMA_VERSION` to ZoneSampleBatchRequestV1 (mirroring EventBatchRequestV1 / DeviceConfigV1) so the edge can pin its wire format explicitly; alternatively update docs/CONTRACTS.md to state the request MUST omit schema_version.",
+    "camera_config.put_line uses `LineV1(...)` inside a try/except ValueError to re-raise as HTTPException(422), but Pydantic v2 raises ValidationError (a subclass of ValueError). It works but the `hasattr(exc, 'errors')` branch relies on that subclass detail; consider catching ValidationError explicitly and using str(exc.errors()[0]['msg']) to always give a useful message.",
+    "camera_config.build_device_config: config_version is a truncated 16-char sha256 hex of the JSON dump — sufficient here but note that changing polygon-point ordering (which is significant) will change the hash correctly; ordering by created_at ensures determinism. Good.",
+    "zones.ingest_samples: uses per-row `s.begin_nested()` for savepoints — works on SQLite but on Postgres the per-row round-trip will be a bottleneck at high batch sizes; consider bulk INSERT ... ON CONFLICT DO NOTHING once on Postgres. Fine for pilot.",
+    "Frontend LineEditorDialog: `line-editor-dialog-submit` correctly stays disabled when coords are unchanged (dirty=false); the test spec's flow of 'clear then click A(0.2,0.55)/B(0.8,0.55) then save' is a no-op if door-1 is already at those exact fractional coords, which is a subtle expectation the reviewer should be aware of (not a bug).",
+    "Frontend TelegramDialog: notice `telegram-not-configured` only renders after `useChannels` resolves — tests that assert its presence immediately after opening the modal can race the query. Consider rendering the notice pessimistically until channels.data arrives, or add a stable data-testid on the loading state."
+  ],
+  "updated_files": ["/app/backend/tests/qa_live_phase4.py"],
+  "success_rate": {"backend": "33/33 (100%)", "frontend": "100% (all spec assertions)"},
+  "test_credentials": "owner@tokopilot.id / Owner-Pilot-2026!  ·  staff@tokopilot.id / Staff-Pilot-2026!  ·  device Bearer key from /app/memory/seed_output.json",
+  "seed_data_creation": "Test creates+deletes qa-line-TEST line, qa-zone-TEST zone (2 ZoneSamples cascade-deleted), qa-ui-TEST zone (via UI), Telegram chat_id -1001234 (reset to null). Snapshot on cam-door-front was overwritten with a synthetic 160x90 JPEG during upload test (labelled preview snapshot 'SNAPSHOT SINTETIS (QA)' no longer visible; if that matters for the pilot demo it should be re-uploaded).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Final preview state: door-1 line restored to A(0.2,0.55)->B(0.8,0.55) side=kiri (approx, from UI clicks); kasir-1 zone intact; no qa-* remnants; telegram_chat_id null on Toko Pilot; camera snapshot now a plain synthetic 160x90 grey JPEG (see note above). Device Bearer key is `Authorization: Bearer <device_api_key_SHOW_ONCE>` — NOT X-Device-Key. POST /api/v1/zones/samples MUST omit `schema_version` (contract has extra='forbid').",
+  "rca of the issue": "N/A — no failures at task end. Iterated fixes: (1) initial test used X-Device-Key header, real device auth is Bearer (auth.require_device). (2) test hit stores/cameras list expecting `id` field — API returns `store_id`/`camera_id`. (3) test sent `schema_version: 1` in ZoneSampleBatchRequestV1 body — schema forbids extras, so 422; removed."
+}
